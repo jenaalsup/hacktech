@@ -44,7 +44,7 @@ export default function SignUp() {
     try {
       setLoading(true);
       await signup(email, password);
-      router.push('/');
+      router.push('/profile/edit');
     } catch (error: any) {      
       // Handle specific error types
       if (error.code) {
