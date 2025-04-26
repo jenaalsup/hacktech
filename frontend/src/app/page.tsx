@@ -1,4 +1,5 @@
 import Link from "next/link";
+import MapComponent from "./map-component";
 
 export default function Home() {
   return (
@@ -6,7 +7,11 @@ export default function Home() {
       <h1 className="text-3xl font-bold mb-6">Roommate Finder</h1>
       <div className="flex flex-col gap-4 mb-8">
         <p>Find summer roommates in your city</p>
-        <p>map view and list view</p>
+        
+        {/* Map View */}
+        <div className="w-full h-[500px] mt-4 mb-6">
+          <MapComponent />
+        </div>
       </div>
       
       <div className="flex flex-col gap-2">
