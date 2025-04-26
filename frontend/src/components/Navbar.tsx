@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
@@ -22,9 +23,15 @@ export default function Navbar() {
   return (
     <nav className="bg-white py-4 px-6 shadow-md w-full">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
-        {/* Logo */}
-        <Link href="/" className="text-2xl font-bold text-orange-400">
-          cumble
+        {/* Logo and Name */}
+        <Link href="/" className="flex items-center gap-2">
+          <Image 
+            src="/logo.png" 
+            alt="Cumble Logo" 
+            width={32} 
+            height={32} 
+          />
+          <span className="text-2xl font-bold text-orange-400">cumble</span>
         </Link>
         
         {/* Navigation Links */}
