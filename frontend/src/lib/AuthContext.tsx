@@ -6,7 +6,7 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  signInWithPopup
+  deleteUser,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { createContext, useContext, useEffect, useState } from 'react';
@@ -17,6 +17,7 @@ interface AuthContextType {
   signup: (email: string, password: string) => Promise<any>;
   login: (email: string, password: string) => Promise<any>;
   logout: () => Promise<void>;
+  deleteUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -36,7 +37,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     return createUserWithEmailAndPassword(auth, email, password);
   }
-  
+
   function login(email: string, password: string) {
     return signInWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
@@ -57,12 +58,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return unsubscribe;
   }, []);
 
+  const deleteUser = async () => {
+    const user = auth.currentUser; // Get the current user
+    if (user) {
+      try {
+        await user.delete(); // Call the delete method on the current user
+        setCurrentUser(null); // Clear the current user from state
+      } catch (error) {
+        console.error('Error deleting user:', error); // Log the error for debugging
+        throw new Error('Failed to delete profile. Please try again.'); // Throw a new error to be caught in the profile page
+      }
+    }
+  };
+
   const value = {
     currentUser,
     loading,
     signup,
     login,
-    logout
+    logout,
+    deleteUser,
   };
 
   return (
