@@ -30,12 +30,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   function signup(email: string, password: string) {
-    return createUserWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        // Handle successful signup
-      });
+    if (!email.endsWith('@caltech.edu')) {
+      // reject if email isn't @caltech.edu
+      return Promise.reject({ code: 'auth/invalid-email-domain', message: 'You must use a Caltech email (@caltech.edu) to sign up.' });
+    }
+    return createUserWithEmailAndPassword(auth, email, password);
   }
-
+  
   function login(email: string, password: string) {
     return signInWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
