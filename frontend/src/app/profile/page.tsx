@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 export default function Profile() {
   const { currentUser, loading, deleteUser } = useAuth(); // Assuming you have a deleteUser function
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
   const [profilePicture, setProfilePicture] = useState<string | ArrayBuffer | null>(currentUser?.photoURL || '');
   const [error, setError] = useState('');
 
@@ -75,7 +74,7 @@ export default function Profile() {
         </div>
         
         <div className="space-y-6">
-          <div className="border-b pb-4">
+          <div className="pb-4">
             <h2 className="text-xl font-semibold mb-4 text-gray-800">Account Information</h2>
             <div className="space-y-3">
               <div>
@@ -96,8 +95,6 @@ export default function Profile() {
               </div>
             </div>
           </div>
-          
-          {error && <p className="text-red-500">{error}</p>}
           
           <div className="flex justify-end">
             <button 

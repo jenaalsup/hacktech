@@ -1,5 +1,5 @@
 
-## Cumble (Caltech x Bumble)
+## Cumble (Caltech x Bumble) 🦫
 
 Webapp to find summer roommates and friends from Caltech!
 
