@@ -1,68 +1,92 @@
-import Link from "next/link";
+'use client';
 
-export default function SignUp() {
+import { useState } from 'react';
+import { useAuth } from '@/lib/AuthContext';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+
+export default function SignIn() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+  const router = useRouter();
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    
+    try {
+      setError('');
+      setLoading(true);
+      await login(email, password);
+      router.push('/');
+    } catch (error) {
+      setError('Failed to sign in');
+      console.error(error);
+    }
+    
+    setLoading(false);
+  }
+
   return (
-    <div className="min-h-screen p-8 flex flex-col items-center justify-center">
-      <div className="w-full max-w-md">
-        <h1 className="text-3xl font-bold mb-6 text-center">Sign Up</h1>
-        
-        <div className="bg-white shadow-md rounded-lg p-6 mb-6">
-          <form className="space-y-4">
-            <div>
-              <label htmlFor="username" className="block mb-1">Username</label>
-              <input 
-                type="text" 
-                id="username" 
-                className="w-full p-2 border rounded-md"
-                placeholder="Enter a username" 
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="email" className="block mb-1">Email</label>
-              <input 
-                type="email" 
-                id="email" 
-                className="w-full p-2 border rounded-md" 
-                placeholder="Enter your email"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="password" className="block mb-1">Password</label>
-              <input 
-                type="password" 
-                id="password" 
-                className="w-full p-2 border rounded-md" 
-                placeholder="Create a password"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="city" className="block mb-1">City</label>
-              <input 
-                type="text" 
-                id="city" 
-                className="w-full p-2 border rounded-md" 
-                placeholder="Enter your city"
-              />
-            </div>
-            
-            <button 
-              type="submit" 
-              className="w-full px-4 py-2 bg-blue-500 text-white rounded-md"
-            >
-              Create Account
-            </button>
-          </form>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full space-y-8 p-10 bg-white rounded-xl shadow-md">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Sign in to cumble</h2>
         </div>
+        {error && <div className="text-red-500 text-center">{error}</div>}
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <label htmlFor="email-address" className="sr-only">Email address</label>
+              <input
+                id="email-address"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="sr-only">Password</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+            >
+              Sign In
+            </button>
+          </div>
+        </form>
         
-        <p className="text-center">
-          Already have an account?{" "}
-          <Link href="/signin" className="text-blue-500 hover:underline">
-            Sign In
-          </Link>
-        </p>
+        <div className="text-center">
+          <p className="text-sm text-gray-600">
+            Need an account?{' '}
+            <Link href="/signup" className="font-medium text-orange-600 hover:text-orange-500">
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

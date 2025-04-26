@@ -3,22 +3,19 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useAuth } from "@/lib/AuthContext";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const [isSignedIn, setIsSignedIn] = useState(false);
+  const { currentUser, logout } = useAuth();
   
-  // Simulating auth check - replace with your actual auth logic
-  useEffect(() => {
-    // Check if user is signed in - this is just a placeholder
-    const checkAuth = () => {
-      // For demo purposes, consider signed in on non-signin/signup pages
-      setIsSignedIn(!['/signin', '/signup'].includes(pathname));
-    };
-    
-    checkAuth();
-  }, [pathname]);
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Failed to log out', error);
+    }
+  };
 
   return (
     <nav className="bg-white py-4 px-6 shadow-md w-full">
@@ -36,15 +33,23 @@ export default function Navbar() {
         
         {/* Navigation Links */}
         <div>
-          {isSignedIn ? (
-            <Link href="/profile">
-              <div className="w-10 h-10 rounded-full bg-orange-200 flex items-center justify-center text-orange-600 cursor-pointer">
-                <span className="text-lg">P</span>
-              </div>
-            </Link>
+          {currentUser ? (
+            <div className="flex items-center gap-4">
+              <Link href="/profile">
+                <div className="w-10 h-10 rounded-full bg-orange-200 flex items-center justify-center text-orange-600 cursor-pointer">
+                  <span className="text-lg">{currentUser.email?.charAt(0).toUpperCase() || 'U'}</span>
+                </div>
+              </Link>
+              <button 
+                onClick={handleLogout}
+                className="text-sm text-gray-500 hover:text-orange-500"
+              >
+                Sign out
+              </button>
+            </div>
           ) : (
             <Link href="/signin" className="border border-orange-400 text-orange-400 px-4 py-2 rounded-md hover:bg-orange-50">
-              Sign up
+              Sign in
             </Link>
           )}
         </div>

@@ -1,30 +1,31 @@
-import Link from "next/link";
+'use client';
+
+import { useEffect } from 'react';
+import { useAuth } from '@/lib/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function Profile() {
+  const { currentUser, loading } = useAuth();
+  const router = useRouter();
+  
+  useEffect(() => {
+    if (!loading && !currentUser) {
+      router.push('/signin');
+    }
+  }, [currentUser, loading, router]);
+  
+  if (loading || !currentUser) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
   return (
     <div className="min-h-screen p-8">
-      <h1 className="text-3xl font-bold mb-6">My Profile</h1>
-      
-      <div className="bg-white shadow-md rounded-lg p-6 mb-6">
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold mb-2">Personal Information</h2>
-          <p className="text-gray-600">Username: username123</p>
-          <p className="text-gray-600">Email: user@example.com</p>
-        </div>
-        
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold mb-2">Location Preferences</h2>
-          <p className="text-gray-600">Current City: San Francisco</p>
-        </div>
-        
-        <button className="px-4 py-2 bg-blue-500 text-white rounded-md">
-          Edit Profile
-        </button>
+      <h1 className="text-3xl font-bold mb-6">Your Profile</h1>
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-semibold mb-4">Account Information</h2>
+        <p><strong>Email:</strong> {currentUser.email}</p>
+        <p><strong>User ID:</strong> {currentUser.uid}</p>
       </div>
-      
-      <Link href="/" className="text-blue-500 hover:underline">
-        Back to Home
-      </Link>
     </div>
   );
 }
