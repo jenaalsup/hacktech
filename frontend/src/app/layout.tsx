@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cumble - Find Your Roommate",
+  title: "Cumble",
   description: "Summer roommate finder for college students",
 };
 
