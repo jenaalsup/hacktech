@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
+import { MongoClient } from 'mongodb';
+
 
 interface ProfileData {
   first_name: string;
@@ -83,13 +85,32 @@ export default function EditProfile() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // TODO: Save the profileData to your backend here
-      console.log('Submitting profile:', profileData);
+      const res = await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profileData),
+      });
+      
+      // parse body safely
+      let payload;
+      try {
+        payload = await res.json();
+      } catch {
+        throw new Error(`Server returned ${res.status} with no valid JSON.`);
+      }
+      
+      if (!res.ok) {
+        throw new Error(payload.message || 'Failed to save profile');
+      }
+  
+      
+
       // After saving, maybe redirect somewhere
       router.push('/profile'); // or wherever you want
     } catch (error) {
       console.error('Failed to save profile', error);
     }
+
   };
 
   return (
