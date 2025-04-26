@@ -97,60 +97,88 @@ export default function EditProfile() {
       <div className="max-w-2xl w-full space-y-8 p-10 bg-white rounded-xl shadow-md">
         <h2 className="text-3xl font-bold text-center text-gray-900">Complete Your Profile</h2>
         <form className="space-y-6" onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              name="first_name"
-              placeholder="First Name"
-              value={profileData.first_name}
-              onChange={handleChange}
-              className="input"
-              required
-            />
-            <input
-              name="last_name"
-              placeholder="Last Name"
-              value={profileData.last_name}
-              onChange={handleChange}
-              className="input"
-              required
-            />
-            <input
-              name="email"
-              placeholder="Email"
-              value={profileData.email}
-              onChange={handleChange}
-              className="input"
-              disabled
-            />
-            <input
-              name="phone_number"
-              placeholder="Phone Number"
-              value={profileData.phone_number}
-              onChange={handleChange}
-              className="input"
-            />
-            <input
-              name="country"
-              placeholder="Country"
-              value={profileData.country}
-              onChange={handleChange}
-              className="input"
-            />
-            <input
-              name="state"
-              placeholder="State"
-              value={profileData.state}
-              onChange={handleChange}
-              className="input"
-            />
-            <input
-              name="city"
-              placeholder="City"
-              value={profileData.city}
-              onChange={handleChange}
-              className="input"
-            />
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex flex-col">
+          <label htmlFor="first_name" className="text-sm font-medium text-gray-700 mb-1">First Name *</label>
+          <input
+            id="first_name"
+            name="first_name"
+            value={profileData.first_name}
+            onChange={handleChange}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+            required
+          />
+        </div>
+
+        <div className="flex flex-col">
+          <label htmlFor="last_name" className="text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+          <input
+            id="last_name"
+            name="last_name"
+            value={profileData.last_name}
+            onChange={handleChange}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+            required
+          />
+        </div>
+
+        <div className="flex flex-col">
+          <label htmlFor="email" className="text-sm font-medium text-gray-700 mb-1">Email *</label>
+          <input
+            id="email"
+            name="email"
+            value={profileData.email}
+            onChange={handleChange}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+            disabled
+          />
+        </div>
+
+        <div className="flex flex-col">
+          <label htmlFor="phone_number" className="text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+          <input
+            id="phone_number"
+            name="phone_number"
+            value={profileData.phone_number}
+            onChange={handleChange}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+          />
+        </div>
+
+        <div className="flex flex-col">
+          <label htmlFor="country" className="text-sm font-medium text-gray-700 mb-1">Country *</label>
+          <input
+            id="country"
+            name="country"
+            value={profileData.country}
+            onChange={handleChange}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+          />
+        </div>
+
+        <div className="flex flex-col">
+          <label htmlFor="state" className="text-sm font-medium text-gray-700 mb-1">State</label>
+          <input
+            id="state"
+            name="state"
+            value={profileData.state}
+            onChange={handleChange}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+          />
+        </div>
+
+        <div className="flex flex-col">
+          <label htmlFor="city" className="text-sm font-medium text-gray-700 mb-1">City *</label>
+          <input
+            id="city"
+            name="city"
+            value={profileData.city}
+            onChange={handleChange}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+          />
+        </div>
+      </div>
+
 
           <div className="space-y-2">
             <label className="block font-medium text-gray-700">Neighborhoods</label>
@@ -203,23 +231,25 @@ export default function EditProfile() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Start Date</label>
+              <label className="block text-sm font-medium text-gray-700">Start Date *</label>
               <input
                 type="date"
                 name="start_date"
                 value={profileData.start_date.split('T')[0]} // only keep YYYY-MM-DD
                 onChange={handleChange}
                 className="input"
+                required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">End Date</label>
+              <label className="block text-sm font-medium text-gray-700">End Date *</label>
               <input
                 type="date"
                 name="end_date"
                 value={profileData.end_date.split('T')[0]}
                 onChange={handleChange}
                 className="input"
+                required
               />
             </div>
           </div>
@@ -227,7 +257,7 @@ export default function EditProfile() {
           <div>
             <textarea
               name="other_notes"
-              placeholder="Other notes"
+              placeholder="Anything else you would like to share!"
               value={profileData.other_notes || ''}
               onChange={handleChange}
               className="input w-full h-24"
