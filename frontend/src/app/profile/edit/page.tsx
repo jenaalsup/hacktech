@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
-import { MongoClient } from 'mongodb';
-
+import { parse } from 'papaparse';
 
 interface ProfileData {
   first_name: string;
@@ -23,15 +22,21 @@ interface ProfileData {
   firebase_id?: string;
 }
 
+interface CSVRow {
+  city_name: string;
+  state_name: string;
+}
+
 export default function EditProfile() {
   const router = useRouter();
-  const { currentUser } = useAuth(); // assuming you store the logged-in user here
+  const { currentUser } = useAuth();
+
   const [profileData, setProfileData] = useState<ProfileData>({
     first_name: '',
     last_name: '',
     email: '',
     phone_number: '',
-    country: '',
+    country: 'USA',
     state: '',
     city: '',
     neighborhoods: [],
@@ -42,14 +47,42 @@ export default function EditProfile() {
     other_notes: '',
   });
 
-  // Pre-fill email if available
+  const [csvData, setCsvData] = useState<CSVRow[]>([]);
+  const [availableStates, setAvailableStates] = useState<string[]>([]);
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+
+  useEffect(() => {
+    async function loadCSV() {
+      try {
+        const response = await fetch('/data/usneighborhoods.csv');
+        const csvText = await response.text();
+        parse(csvText, {
+          header: true,
+          complete: (results: any) => {
+            const data: CSVRow[] = results.data.filter((row: CSVRow) => row.city_name && row.state_name);
+            setCsvData(data);
+
+            const uniqueStates = Array.from(new Set(data.map(d => d.state_name))).sort();
+            setAvailableStates(uniqueStates);
+          },
+          error: (error: any) => {
+            console.error('Error parsing CSV:', error);
+          }
+        });
+      } catch (error) {
+        console.error('Failed to load CSV', error);
+      }
+    }
+
+    loadCSV();
+  }, []);
+
   useEffect(() => {
     if (currentUser?.email) {
-      setProfileData((prev) => ({ ...prev, email: currentUser.email ?? '' }));
+      setProfileData((prev) => ({ ...prev, email: currentUser.email }));
     }
   }, [currentUser]);
 
-  // fetch existing profile by firebase_id and autofill form if data exists
   useEffect(() => {
     if (!currentUser?.uid) return;
     const load = async () => {
@@ -59,7 +92,6 @@ export default function EditProfile() {
       if (exists && profile) {
         setProfileData({
           ...profile,
-          // ensure textarea won’t break if null
           other_notes: profile.other_notes ?? '',
         });
       }
@@ -67,17 +99,32 @@ export default function EditProfile() {
     load();
   }, [currentUser]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined; // Type assertion for checked
+    const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
     setProfileData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+
+    if (name === 'state') {
+      const filteredCities = csvData
+        .filter(d => d.state_name === value)
+        .map(d => d.city_name);
+      const uniqueCities = Array.from(new Set(filteredCities)).sort();
+      setAvailableCities(uniqueCities);
+
+      // Reset city if state changes
+      setProfileData(prev => ({
+        ...prev,
+        state: value,
+        city: '',
+      }));
+    }
   };
 
   const handleNeighborhoodChange = (index: number, value: string) => {
-    const updatedNeighborhoods = [...profileData.neighborhoods || []];
+    const updatedNeighborhoods = [...profileData.neighborhoods];
     updatedNeighborhoods[index] = value;
     setProfileData((prev) => ({
       ...prev,
@@ -108,32 +155,16 @@ export default function EditProfile() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-              ...profileData,
-              // add the Firebase UID under the `firebase_id` key:
-              firebase_id: currentUser?.uid,
+          ...profileData,
+          firebase_id: currentUser?.uid,
         }),
       });
-      
-      // parse body safely
-      let payload;
-      try {
-        payload = await res.json();
-      } catch {
-        throw new Error(`Server returned ${res.status} with no valid JSON.`);
-      }
-      
-      if (!res.ok) {
-        throw new Error(payload.message || 'Failed to save profile');
-      }
-  
-      
 
-      // After saving, maybe redirect somewhere
-      router.push('/profile'); // or wherever you want
+      if (!res.ok) throw new Error('Failed to save profile');
+      router.push('/profile');
     } catch (error) {
       console.error('Failed to save profile', error);
     }
-
   };
 
   return (
@@ -141,89 +172,109 @@ export default function EditProfile() {
       <div className="max-w-2xl w-full space-y-8 p-10 bg-white rounded-xl shadow-md">
         <h2 className="text-3xl font-bold text-center text-gray-900">Complete Your Profile</h2>
         <form className="space-y-6" onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="flex flex-col">
-          <label htmlFor="first_name" className="text-sm font-medium text-gray-700 mb-1">First Name *</label>
-          <input
-            id="first_name"
-            name="first_name"
-            value={profileData.first_name}
-            onChange={handleChange}
-            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
-            required
-          />
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* First Name */}
+            <div className="flex flex-col">
+              <label htmlFor="first_name" className="text-sm font-medium text-gray-700 mb-1">First Name *</label>
+              <input
+                id="first_name"
+                name="first_name"
+                value={profileData.first_name}
+                onChange={handleChange}
+                className="input"
+                required
+              />
+            </div>
 
-        <div className="flex flex-col">
-          <label htmlFor="last_name" className="text-sm font-medium text-gray-700 mb-1">Last Name *</label>
-          <input
-            id="last_name"
-            name="last_name"
-            value={profileData.last_name}
-            onChange={handleChange}
-            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
-            required
-          />
-        </div>
+            {/* Last Name */}
+            <div className="flex flex-col">
+              <label htmlFor="last_name" className="text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+              <input
+                id="last_name"
+                name="last_name"
+                value={profileData.last_name}
+                onChange={handleChange}
+                className="input"
+                required
+              />
+            </div>
 
-        <div className="flex flex-col">
-          <label htmlFor="email" className="text-sm font-medium text-gray-700 mb-1">Email *</label>
-          <input
-            id="email"
-            name="email"
-            value={profileData.email}
-            onChange={handleChange}
-            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
-            disabled
-          />
-        </div>
+            {/* Email */}
+            <div className="flex flex-col">
+              <label htmlFor="email" className="text-sm font-medium text-gray-700 mb-1">Email *</label>
+              <input
+                id="email"
+                name="email"
+                value={profileData.email}
+                onChange={handleChange}
+                className="input"
+                disabled
+              />
+            </div>
 
-        <div className="flex flex-col">
-          <label htmlFor="phone_number" className="text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-          <input
-            id="phone_number"
-            name="phone_number"
-            value={profileData.phone_number}
-            onChange={handleChange}
-            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
-          />
-        </div>
+            {/* Phone Number */}
+            <div className="flex flex-col">
+              <label htmlFor="phone_number" className="text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+              <input
+                id="phone_number"
+                name="phone_number"
+                value={profileData.phone_number}
+                onChange={handleChange}
+                className="input"
+              />
+            </div>
 
-        <div className="flex flex-col">
-          <label htmlFor="country" className="text-sm font-medium text-gray-700 mb-1">Country *</label>
-          <input
-            id="country"
-            name="country"
-            value={profileData.country}
-            onChange={handleChange}
-            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
-          />
-        </div>
+            {/* Country Dropdown */}
+            <div className="flex flex-col">
+              <label htmlFor="country" className="text-sm font-medium text-gray-700 mb-1">Country *</label>
+              <input
+                id="country"
+                name="country"
+                value="USA"
+                disabled
+                className="input"
+              />
+            </div>
 
-        <div className="flex flex-col">
-          <label htmlFor="state" className="text-sm font-medium text-gray-700 mb-1">State</label>
-          <input
-            id="state"
-            name="state"
-            value={profileData.state}
-            onChange={handleChange}
-            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
-          />
-        </div>
+            {/* State Dropdown */}
+            <div className="flex flex-col">
+              <label htmlFor="state" className="text-sm font-medium text-gray-700 mb-1">State *</label>
+              <select
+                id="state"
+                name="state"
+                value={profileData.state}
+                onChange={handleChange}
+                className="input"
+                required
+              >
+                <option value="">Select a state</option>
+                {availableStates.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
 
-        <div className="flex flex-col">
-          <label htmlFor="city" className="text-sm font-medium text-gray-700 mb-1">City *</label>
-          <input
-            id="city"
-            name="city"
-            value={profileData.city}
-            onChange={handleChange}
-            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
-          />
-        </div>
-      </div>
+            {/* City Dropdown */}
+            <div className="flex flex-col">
+              <label htmlFor="city" className="text-sm font-medium text-gray-700 mb-1">City *</label>
+              <select
+                id="city"
+                name="city"
+                value={profileData.city}
+                onChange={handleChange}
+                className="input"
+                required
+                disabled={!profileData.state}
+              >
+                <option value="">Select a city</option>
+                {availableCities.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-
+          {/* Neighborhoods */}
           <div className="space-y-2">
             <label className="block font-medium text-gray-700">Neighborhoods</label>
             {profileData.neighborhoods.map((neighborhood, index) => (
@@ -252,6 +303,7 @@ export default function EditProfile() {
             </button>
           </div>
 
+          {/* Checkboxes */}
           <div className="flex space-x-4">
             <label className="flex items-center space-x-2">
               <input
@@ -273,13 +325,14 @@ export default function EditProfile() {
             </label>
           </div>
 
+          {/* Start and End Dates */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Start Date *</label>
               <input
                 type="date"
                 name="start_date"
-                value={profileData.start_date.split('T')[0]} // only keep YYYY-MM-DD
+                value={profileData.start_date.split('T')[0]}
                 onChange={handleChange}
                 className="input"
                 required
@@ -298,16 +351,18 @@ export default function EditProfile() {
             </div>
           </div>
 
+          {/* Other Notes */}
           <div>
             <textarea
               name="other_notes"
-              placeholder="Anything else you would like to share!"
+              placeholder="Anything else you'd like to share"
               value={profileData.other_notes || ''}
               onChange={handleChange}
               className="input w-full h-24"
             />
           </div>
 
+          {/* Submit Button */}
           <div>
             <button
               type="submit"
@@ -316,6 +371,7 @@ export default function EditProfile() {
               Save Profile
             </button>
           </div>
+
         </form>
       </div>
     </div>
