@@ -49,7 +49,7 @@ export default function EditProfile() {
     }
   }, [currentUser]);
 
-  // on mount, fetch existing profile by firebase_id
+  // fetch existing profile by firebase_id and autofill form if data exists
   useEffect(() => {
     if (!currentUser?.uid) return;
     const load = async () => {
