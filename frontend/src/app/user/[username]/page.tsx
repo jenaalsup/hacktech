@@ -1,9 +1,9 @@
-// app/user/[username]/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
+import Link from 'next/link'; // Added for the Edit button link
 
 interface Profile {
   first_name?: string;
@@ -27,13 +27,14 @@ export default function UserProfile() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notFound, setNotFound] = useState(false);
 
+  const cleanUsername = Array.isArray(username) ? username[0] : username ?? '';
   const currentUsername = currentUser?.email?.split('@')[0] || '';
   const isOwnProfile = username === currentUsername;
 
   useEffect(() => {
     async function fetchProfile() {
       try {
-        const res = await fetch(`/api/user?username=${username}`);
+        const res = await fetch(`/api/user?username=${cleanUsername}`);
         if (res.status === 404) {
           setNotFound(true);
           return;
@@ -48,12 +49,12 @@ export default function UserProfile() {
       }
     }
     fetchProfile();
-  }, [username]);
+  }, [cleanUsername]);
 
   if (notFound) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-lg text-gray-700">User “{username}” not found.</p>
+        <p className="text-lg text-gray-700">User “{cleanUsername}” not found.</p>
       </div>
     );
   }
@@ -69,14 +70,26 @@ export default function UserProfile() {
   const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ');
   const initial = profile.first_name
     ? profile.first_name.charAt(0).toUpperCase()
-    : username.charAt(0).toUpperCase();
+    : cleanUsername.charAt(0).toUpperCase();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="max-w-md w-full bg-gray-100 p-8 rounded-xl shadow-md">
         <h1 className="text-3xl font-bold mb-4 text-center text-gray-900">
-          {isOwnProfile ? 'Your Profile' : `${username}'s Profile`}
+          {isOwnProfile ? 'Your Profile' : `${cleanUsername}'s Profile`}
         </h1>
+
+        {/* Edit Button */}
+        {isOwnProfile && (
+          <div className="flex justify-center mb-6">
+            <Link
+              href="/profile/edit"
+              className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition"
+            >
+              Edit Profile
+            </Link>
+          </div>
+        )}
 
         <div className="flex justify-center mb-4">
           {profile.profile_picture ? (

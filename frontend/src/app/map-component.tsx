@@ -178,7 +178,6 @@ export default function MapComponent() {
           },
         });
 
-        // Hover popup
         map.current!.on('mouseenter', 'user-points', (e) => {
           map.current!.getCanvas().style.cursor = 'pointer';
 
@@ -209,7 +208,6 @@ export default function MapComponent() {
           }
         });
 
-        // Click to go to profile
         map.current!.on('click', 'user-points', (e) => {
           const feature = e.features?.[0];
           if (feature) {
@@ -237,18 +235,21 @@ export default function MapComponent() {
 
   const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setCity(e.target.value);
+    if (map.current) {
+      map.current.remove();
+      map.current = null;
+    }
   };
 
   return (
     <div className={`flex flex-col items-center ${!city ? 'min-h-screen justify-start pt-20' : 'space-y-4'}`}>
       
-      {/* City Select */}
+      {/* No city selected — show orange bubbles */}
       {!city && (
         <div className="flex flex-col items-center space-y-6">
           <h2 className="text-xl font-semibold text-gray-700 mt-4">
             Select a city to view Caltech students in that city!
           </h2>
-
           <div className="flex flex-wrap justify-center gap-3 max-w-5xl px-4">
             {cities.map((cityName, idx) => (
               <button
@@ -263,11 +264,32 @@ export default function MapComponent() {
         </div>
       )}
 
-      {/* Map */}
+      {/* City selected — show dropdown and map */}
       {city && (
-        <div className="flex flex-col md:flex-row gap-4 w-full p-4">
-          <div className="w-full md:w-3/4">
-            <div ref={mapContainer} className="w-full h-96 md:h-120 rounded-lg shadow" />
+        <div className="flex flex-col w-full px-4">
+          {/* Dropdown always visible when city is selected */}
+          <div className="flex justify-start mb-4">
+            <select
+              id="city-select"
+              className="border border-gray-300 p-2 rounded-md w-64"
+              onChange={handleCityChange}
+              value={city}
+              disabled={isLoading}
+            >
+              <option value="">Select a City</option>
+              {cities.map((cityName) => (
+                <option key={cityName} value={cityName}>
+                  {cityName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Map */}
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="w-full md:w-3/4">
+              <div ref={mapContainer} className="w-full h-96 md:h-120 rounded-lg shadow" />
+            </div>
           </div>
         </div>
       )}
