@@ -119,7 +119,7 @@ export default function MapComponent() {
     // === UPDATED userFeatures generation ===
     const locationCount = new Map<string, number>();
 
-    const userFeatures = users.map(user => {
+    const userFeatures = (Array.isArray(users) ? users : []).map(user => {
       const firstNeighborhood = user.neighborhoods?.[0];
       const match = cityNeighborhoods.find(n => n.neighborhood === firstNeighborhood);
       if (!match) return null;
@@ -238,9 +238,9 @@ export default function MapComponent() {
   return (
     <div className="flex flex-col space-y-4">
       <div className="flex flex-col sm:flex-row gap-4 items-center">
-        <div className="w-full sm:w-64">
+        <div className="w-full sm:w-128">
           <label htmlFor="city-select" className="block text-sm font-medium text-gray-700 mb-1">
-            Select a city:
+            Select a city to view Caltech students in that city!
           </label>
           <select
             id="city-select"
@@ -256,16 +256,6 @@ export default function MapComponent() {
               </option>
             ))}
           </select>
-        </div>
-
-        <div className="w-full">
-          <p className="text-sm text-gray-600">
-            {isLoading
-              ? 'Loading neighborhoods...'
-              : city
-                ? `Showing users in ${city}`
-                : 'Select a city to view Caltech students in that city!'}
-          </p>
         </div>
       </div>
 

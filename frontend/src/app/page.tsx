@@ -93,7 +93,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen p-8 flex flex-col items-center">
-      <h1 className="text-3xl font-bold mb-6 text-center w-full">find a pad or a lad</h1>
+      <h1 className="text-3xl font-bold mb-6 text-center w-full">find a caltech roommate or a friend for the summer 🏡👯‍♀️</h1>
 
       {/* Toggle Buttons */}
       <div className="flex gap-4 mb-8">
