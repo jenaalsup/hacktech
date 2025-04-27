@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { parse } from 'papaparse';
@@ -20,6 +21,7 @@ interface ProfileData {
   end_date: string;
   other_notes: string | null;
   firebase_id?: string;
+  profile_picture?: string;
 }
 
 interface CSVRow {
@@ -45,11 +47,17 @@ export default function EditProfile() {
     start_date: '',
     end_date: '',
     other_notes: '',
+    profile_picture: undefined,
   });
 
   const [csvData, setCsvData] = useState<CSVRow[]>([]);
   const [availableStates, setAvailableStates] = useState<string[]>([]);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
+  
+  // for image upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [processedImage, setProcessedImage] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadCSV() {
@@ -148,6 +156,49 @@ export default function EditProfile() {
     }));
   };
 
+  // if they already had a profile_picture saved, show it
+  useEffect(() => {
+    if (profileData.profile_picture) {
+      setPreview(profileData.profile_picture);
+    }
+  }, [profileData.profile_picture]);
+
+  // when they pick a file, crop & compress it
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg','image/jpg'].includes(file.type)) {
+      return alert('Please select a JPG/JPEG image.');
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const { width, height } = img;
+        const side = Math.min(width, height);
+        const sx = (width - side) / 2;
+        const sy = (height - side) / 2;
+        // final size: either 480 or the side length if smaller
+        const finalSize = side > 480 ? 480 : side;
+        const canvas = document.createElement('canvas');
+        canvas.width = finalSize;
+        canvas.height = finalSize;
+        const ctx = canvas.getContext('2d')!;
+        if (side > 480) {
+          ctx.drawImage(img, sx, sy, side, side, 0, 0, 480, 480);
+        } else {
+          ctx.drawImage(img, sx, sy, side, side, 0, 0, side, side);
+        }
+        // get a JPEG Data-URL
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setProcessedImage(dataUrl);
+        setPreview(dataUrl);
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -157,6 +208,7 @@ export default function EditProfile() {
         body: JSON.stringify({
           ...profileData,
           firebase_id: currentUser?.uid,
+          profile_picture: processedImage, // include the cropped/compressed JPEG
         }),
       });
 
@@ -171,6 +223,36 @@ export default function EditProfile() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-2xl w-full space-y-8 p-10 bg-white rounded-xl shadow-md">
         <h2 className="text-3xl font-bold text-center text-gray-900">Complete Your Profile</h2>
+        {/*
+         Avatar uploader: click to open file picker,
+         hover shows “Upload Photo” overlay
+        */}
+        <div className="flex justify-center mb-4">
+          <div
+            className="relative group w-24 h-24 rounded-full overflow-hidden bg-gray-200 cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {preview ? (
+              <img src={preview} className="object-cover w-full h-full" />
+            ) : (
+              <span className="flex items-center justify-center w-full h-full text-4xl text-orange-600">
+                {profileData.first_name?.[0]?.toUpperCase() || 'U'}
+              </span>
+            )}
+            <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+              <button type="button" className="text-white text-sm">
+                Upload Photo
+              </button>
+            </div>
+            <input
+              type="file"
+              accept=".jpg,.jpeg"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleImageUpload}
+            />
+          </div>
+        </div>
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* First Name */}
