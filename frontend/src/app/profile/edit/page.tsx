@@ -375,35 +375,43 @@ export default function EditProfile() {
             </div>
           </div>
 
-          {/* Neighborhoods */}
-          <div className="space-y-2">
-            <label className="block font-medium text-gray-700">Neighborhoods</label>
-            {profileData.neighborhoods.map((neighborhood, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  value={neighborhood}
-                  onChange={(e) => handleNeighborhoodChange(index, e.target.value)}
-                  className="input flex-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeNeighborhood(index)}
-                  className="text-red-500"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              disabled={!profileData.city}
-              className="text-sm text-orange-600 hover:underline disabled:opacity-50"
-            >
-              Edit Neighborhoods
-            </button>
-          </div>
+        {/* Neighborhoods */}
+        <div className="space-y-2">
+          <label className="block font-medium text-gray-700">Neighborhoods</label>
+          
+          {/* New note */}
+          <p className="text-sm text-gray-500">
+            The first neighborhood you enter is where your pin will appear on the map for other students to see!
+          </p>
+
+          {profileData.neighborhoods.map((neighborhood, index) => (
+            <div key={index} className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={neighborhood}
+                onChange={(e) => handleNeighborhoodChange(index, e.target.value)}
+                className="input flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => removeNeighborhood(index)}
+                className="text-red-500"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            disabled={!profileData.city}
+            className="text-sm text-orange-600 hover:underline disabled:opacity-50"
+          >
+            Edit Neighborhoods
+          </button>
+        </div>
+
 
           {/* Checkboxes */}
           <div className="flex space-x-4">
