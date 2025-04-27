@@ -1,24 +1,23 @@
+// src/app/map-component.tsx
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { parse } from 'papaparse';
-
-const pastelOranges = [
-  'bg-orange-300',
-  'bg-orange-400',
-  'bg-orange-400',
-  'bg-orange-400',
-  'bg-orange-500',
-];
 
 interface Neighborhood {
   neighborhood: string;
   city_name: string;
   lat: string;
   lng: string;
-  // …other fields omitted
+}
+
+interface CityRow {
+  city_name: string;
+  state_id: string;
+  lat: string;
+  lng: string;
 }
 
 interface User {
@@ -32,83 +31,100 @@ interface User {
 
 export default function MapComponent() {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map>(); 
+  const mapRef = useRef<mapboxgl.Map>();
   const popupRef = useRef<mapboxgl.Popup>();
 
   const [allNeighborhoods, setAllNeighborhoods] = useState<Neighborhood[]>([]);
+  const [allCities, setAllCities] = useState<CityRow[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<string>('');
 
-  // 1) Load CSV & Users on mount
+  // 1) Load CSVs + users
   useEffect(() => {
     (async () => {
-      // CSV
-      const csvText = await (await fetch('/data/usneighborhoods.csv')).text();
-      parse<Neighborhood>(csvText, {
+      // neighborhoods CSV
+      const nbText = await fetch('/data/usneighborhoods.csv').then(r => r.text());
+      parse<Neighborhood>(nbText, {
         header: true,
-        complete: ({ data }) => {
-          const valid = data.filter(n => n.neighborhood && n.lat && n.lng);
-          setAllNeighborhoods(valid);
-          setCities(Array.from(new Set(valid.map(n => n.city_name))).sort());
-        },
+        complete: ({ data }) =>
+          setAllNeighborhoods(
+            data.filter(n => n.city_name && n.neighborhood && n.lat && n.lng)
+          ),
       });
-      // Users
-      const usersRes = await fetch('/api/users');
-      setUsers(await usersRes.json());
+
+      // cities CSV
+      const ctText = await fetch('/data/uscities.csv').then(r => r.text());
+      parse<CityRow>(ctText, {
+        header: true,
+        complete: ({ data }) =>
+          setAllCities(
+            data.filter(c => c.city_name && c.lat && c.lng)
+          ),
+      });
+
+      // users API
+      const us = await fetch('/api/users').then(r => r.json());
+      setUsers(us);
     })();
   }, []);
 
-  // 2) Init map once
+  // 2) Init Mapbox
   useEffect(() => {
     if (mapRef.current || !mapContainer.current) return;
-
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
-    mapRef.current = new mapboxgl.Map({
+    const map = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
-      center: [-95.7129, 37.0902], // USA center
+      center: [-95.7129, 37.0902],
       zoom: 3,
     });
-    mapRef.current.addControl(new mapboxgl.NavigationControl());
-
-    // when style & sources are ready, draw pins
-    mapRef.current.on('load', () => {
-      updateUserPins();
-    });
+    map.addControl(new mapboxgl.NavigationControl());
+    map.on('load', () => updateUserPins());
+    mapRef.current = map;
   }, []);
 
-  // 3) Whenever users, CSV or city filter changes, re-draw
+  // 3) Re-draw whenever data or selection changes
   useEffect(() => {
     if (!mapRef.current?.loaded()) return;
+    // rebuild dropdown of cities that users actually live in
+    setCities(Array.from(new Set(users.map(u => u.city))).sort());
     updateUserPins();
-  }, [users, allNeighborhoods, selectedCity]);
+  }, [users, allNeighborhoods, allCities, selectedCity]);
 
-  // Utility: remove old layer/source, add new GeoJSON
   function updateUserPins() {
     const map = mapRef.current!;
-    // clear old
-    if (map.getLayer('user-points')) {
-      map.removeLayer('user-points');
-    }
-    if (map.getSource('users')) {
-      map.removeSource('users');
-    }
+    // remove old
+    if (map.getLayer('user-points')) map.removeLayer('user-points');
+    if (map.getSource('users')) map.removeSource('users');
 
-    // build features
-    // build features for ALL users, regardless of selectedCity
+    // build GeoJSON features
     const locCount = new Map<string, number>();
-    const features = users.map(u => {
+    const features = users
+      .map(u => {
+        let lat: number, lng: number;
+
+        // 1) try neighborhood
         const firstN = u.neighborhoods?.[0];
-        const match = allNeighborhoods.find(
+        const nb = allNeighborhoods.find(
           n => n.city_name === u.city && n.neighborhood === firstN
         );
-        if (!match) return null;
-        const lng = parseFloat(match.lng);
-        const lat = parseFloat(match.lat);
-        const key = `${lng},${lat}`;
+        if (nb) {
+          lat = parseFloat(nb.lat);
+          lng = parseFloat(nb.lng);
+        } else {
+          // 2) fallback: city center
+          const city = allCities.find(c => c.city_name === u.city);
+          if (!city) return null;
+          lat = parseFloat(city.lat);
+          lng = parseFloat(city.lng);
+        }
+
+        // offset overlapping pins
+        const key = `${lat},${lng}`;
         const count = locCount.get(key) || 0;
         locCount.set(key, count + 1);
+
         return {
           type: 'Feature',
           geometry: {
@@ -120,7 +136,8 @@ export default function MapComponent() {
             profileUrl: `/user/${u.email.split('@')[0]}`,
           },
         };
-      }).filter(Boolean) as GeoJSON.Feature[];
+      })
+      .filter(Boolean) as GeoJSON.Feature[];
 
     // add source + layer
     map.addSource('users', {
@@ -142,12 +159,12 @@ export default function MapComponent() {
     // popups & click
     map.on('mouseenter', 'user-points', e => {
       map.getCanvas().style.cursor = 'pointer';
-      const feat = e.features?.[0];
-      if (feat) {
+      const f = e.features?.[0];
+      if (f) {
         popupRef.current?.remove();
         popupRef.current = new mapboxgl.Popup({ offset: 15, closeButton: false })
-          .setLngLat((feat.geometry as any).coordinates)
-          .setHTML(`<strong>${feat.properties!.name}</strong>`)
+          .setLngLat((f.geometry as any).coordinates)
+          .setHTML(`<strong>${f.properties?.name}</strong>`)
           .addTo(map);
       }
     });
@@ -157,41 +174,44 @@ export default function MapComponent() {
       popupRef.current = undefined;
     });
     map.on('click', 'user-points', e => {
-      const feat = e.features?.[0];
-      if (feat && feat.properties!.profileUrl) {
-        window.location.href = feat.properties!.profileUrl as string;
+      const f = e.features?.[0];
+      if (f?.properties?.profileUrl) {
+        window.location.href = f.properties.profileUrl;
       }
     });
 
-    // adjust viewport
-    if (features.length) {
+    // viewport: either fit all pins, or zoom to selected city
+    if (selectedCity) {
+      // try neighborhood bounds
       const bounds = new mapboxgl.LngLatBounds();
-      features.forEach(f => bounds.extend((f.geometry as any).coordinates));
-      map.fitBounds(bounds, { padding: 50, maxZoom: selectedCity ? 14 : 5 });
-    }
-  }
-
-  // finally: if they picked a city, zoom _to that city’s bounds_
-  if (selectedCity) {
-      const cityBounds = new mapboxgl.LngLatBounds();
       allNeighborhoods
         .filter(n => n.city_name === selectedCity)
-        .forEach(n => {
-          const lat = parseFloat(n.lat);
-          const lng = parseFloat(n.lng);
-          if (!isNaN(lat) && !isNaN(lng)) {
-            cityBounds.extend([lng, lat]);
-          }
-        });
-      if (!cityBounds.isEmpty()) {
-        // use mapRef.current here
-        mapRef.current!.fitBounds(cityBounds, { padding: 50, maxZoom: 14 });
+        .forEach(n =>
+          bounds.extend([parseFloat(n.lng), parseFloat(n.lat)])
+        );
+      if (!bounds.isEmpty()) {
+        map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+      } else {
+        // fallback: center on city
+        const city = allCities.find(c => c.city_name === selectedCity);
+        if (city) {
+          map.flyTo({
+            center: [parseFloat(city.lng), parseFloat(city.lat)],
+            zoom: 12,
+          });
+        }
       }
+    } else if (features.length) {
+      const allBounds = new mapboxgl.LngLatBounds();
+      features.forEach(f =>
+        allBounds.extend((f.geometry as any).coordinates)
+      );
+      map.fitBounds(allBounds, { padding: 50, maxZoom: 5 });
+    }
   }
 
   return (
     <div className="relative w-full h-[80vh]">
-      {/* City selector, always visible */}
       <div className="absolute top-4 left-4 z-10">
         <select
           className="border border-gray-300 p-2 rounded-md bg-white"
@@ -200,12 +220,12 @@ export default function MapComponent() {
         >
           <option value="">All Cities</option>
           {cities.map(c => (
-            <option key={c} value={c}>{c}</option>
+            <option key={c} value={c}>
+              {c}
+            </option>
           ))}
         </select>
       </div>
-
-      {/* Map container */}
       <div ref={mapContainer} className="w-full h-full rounded-lg shadow" />
     </div>
   );
