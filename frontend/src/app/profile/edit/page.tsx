@@ -20,6 +20,7 @@ interface ProfileData {
   start_date: string;
   end_date: string;
   other_notes: string | null;
+  firebase_id?: string;
 }
 
 export default function EditProfile() {
@@ -88,7 +89,11 @@ export default function EditProfile() {
       const res = await fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profileData),
+        body: JSON.stringify({
+              ...profileData,
+              // add the Firebase UID under the `firebase_id` key:
+              firebase_id: currentUser?.uid,
+        }),
       });
       
       // parse body safely
