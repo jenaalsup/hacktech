@@ -49,6 +49,24 @@ export default function EditProfile() {
     }
   }, [currentUser]);
 
+  // on mount, fetch existing profile by firebase_id
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    const load = async () => {
+      const res = await fetch(`/api/profile?firebase_id=${currentUser.uid}`);
+      if (!res.ok) return;
+      const { exists, profile } = await res.json();
+      if (exists && profile) {
+        setProfileData({
+          ...profile,
+          // ensure textarea won’t break if null
+          other_notes: profile.other_notes ?? '',
+        });
+      }
+    };
+    load();
+  }, [currentUser]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined; // Type assertion for checked
