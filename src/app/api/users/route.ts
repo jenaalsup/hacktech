@@ -23,6 +23,7 @@ export async function GET() {
       first_name: user.first_name,
       last_name: user.last_name,
       email: user.email,
+      state: user.state,
       country: user.country,
       city: user.city,
       neighborhoods: user.neighborhoods || [],

@@ -329,6 +329,14 @@ export default function EditProfile() {
               />
             </div>
 
+
+            {/* Summer info sub-heading */}
+            <div className="col-span-full pt-4">
+              <h3 className="text-xl font-semibold text-gray-800">
+                Info for the Summer
+              </h3>
+            </div>
+
             {/* Country */}
             <div className="flex flex-col">
               <label htmlFor="country" className="text-sm font-medium text-gray-700 mb-1">Country *</label>
