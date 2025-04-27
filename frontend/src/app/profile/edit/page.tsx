@@ -89,6 +89,17 @@ export default function EditProfile() {
   }, []);
 
   useEffect(() => {
+    if (!profileData.state) {
+      setAvailableCities([]);
+      return;
+    }
+    const cities = csvData
+      .filter(r => r.state_name === profileData.state)
+      .map(r => r.city_name);
+    setAvailableCities(Array.from(new Set(cities)).sort());
+  }, [csvData, profileData.state]);
+
+  useEffect(() => {
     if (currentUser?.email) {
       setProfileData((prev) => ({ ...prev, email: currentUser.email }));
     }
@@ -110,29 +121,33 @@ export default function EditProfile() {
     load();
   }, [currentUser]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value, type } = e.target;
-    const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
-    setProfileData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    const checked = type === 'checkbox' && (e.target as HTMLInputElement).checked;
 
+    // if state changes: reset city + neighborhoods
     if (name === 'state') {
-      const filteredCities = csvData
-        .filter(d => d.state_name === value)
-        .map(d => d.city_name);
-      const uniqueCities = Array.from(new Set(filteredCities)).sort();
-      setAvailableCities(uniqueCities);
-
-      // Reset city if state changes
-      setProfileData(prev => ({
-        ...prev,
+      setProfileData(p => ({
+        ...p,
         state: value,
         city: '',
+        neighborhoods: [], 
       }));
+      return;
     }
-  };
+
+    // if city changes: reset neighborhoods only
+    if (name === 'city') {
+      setProfileData(p => ({
+        ...p,
+        city: value,
+        neighborhoods: [],
+      }));
+      return;
+    }
+  }
 
   const handleNeighborhoodChange = (index: number, value: string) => {
     const updatedNeighborhoods = [...profileData.neighborhoods];
