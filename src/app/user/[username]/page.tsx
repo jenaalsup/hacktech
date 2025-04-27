@@ -17,7 +17,7 @@ interface Profile {
   start_date?: string;
   end_date?: string;
   other_notes?: string;
-  profile_picture?: string;
+  profile_picture?: string; 
 }
 
 export default function UserProfile() {
