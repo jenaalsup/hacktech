@@ -12,7 +12,7 @@ export default function Footer() {
           rel="noopener noreferrer"
           className="underline hover:text-gray-800"
         >
-          Source Code
+          Website Source Code
         </Link>
       </div>
     </footer>

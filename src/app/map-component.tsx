@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import { parse } from 'papaparse';
 
 const pastelOranges = [
@@ -14,19 +15,10 @@ const pastelOranges = [
 
 interface Neighborhood {
   neighborhood: string;
-  neighborhood_ascii: string;
+  city_name: string;
   lat: string;
   lng: string;
-  city_name: string;
-  city_id: string;
-  state_name: string;
-  state_id: string;
-  source: string;
-  timezone: string;
-  zips: string;
-  county_fips: string;
-  county_name: string;
-  id: string;
+  // …other fields omitted
 }
 
 interface User {
@@ -34,264 +26,187 @@ interface User {
   first_name: string;
   last_name: string;
   email: string;
+  city: string;
   neighborhoods: string[];
 }
 
 export default function MapComponent() {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const popupRef = useRef<mapboxgl.Popup | null>(null);
+  const mapRef = useRef<mapboxgl.Map>(); 
+  const popupRef = useRef<mapboxgl.Popup>();
 
-  const [city, setCity] = useState('');
-  const [cities, setCities] = useState<string[]>([]);
   const [allNeighborhoods, setAllNeighborhoods] = useState<Neighborhood[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [cities, setCities] = useState<string[]>([]);
+  const [selectedCity, setSelectedCity] = useState<string>('');
 
+  // 1) Load CSV & Users on mount
   useEffect(() => {
-    async function loadCSVData() {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/data/usneighborhoods.csv');
-        const csvText = await response.text();
-        parse<Neighborhood>(csvText, {
-          header: true,
-          complete: (results) => {
-            const validData = results.data.filter(n => n.neighborhood && n.lat && n.lng);
-            setAllNeighborhoods(validData);
-            const uniqueCities = Array.from(new Set(validData.map(n => n.city_name)))
-              .filter(Boolean)
-              .sort();
-            setCities(uniqueCities);
-            setIsLoading(false);
-          },
-          error: (err: Error) => {
-            console.error('Error parsing CSV', err);
-            setIsLoading(false);
-          }
-        });
-      } catch (error) {
-        console.error('Error loading CSV', error);
-        setIsLoading(false);
-      }
-    }
-
-    async function loadUsers() {
-      try {
-        const response = await fetch('/api/users');
-        const data = await response.json();
-        setUsers(data);
-      } catch (error) {
-        console.error('Error loading users:', error);
-      }
-    }
-
-    loadCSVData();
-    loadUsers();
+    (async () => {
+      // CSV
+      const csvText = await (await fetch('/data/usneighborhoods.csv')).text();
+      parse<Neighborhood>(csvText, {
+        header: true,
+        complete: ({ data }) => {
+          const valid = data.filter(n => n.neighborhood && n.lat && n.lng);
+          setAllNeighborhoods(valid);
+          setCities(Array.from(new Set(valid.map(n => n.city_name))).sort());
+        },
+      });
+      // Users
+      const usersRes = await fetch('/api/users');
+      setUsers(await usersRes.json());
+    })();
   }, []);
 
+  // 2) Init map once
   useEffect(() => {
-    if (!city || map.current || !mapContainer.current) return;
+    if (mapRef.current || !mapContainer.current) return;
 
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
-
-    map.current = new mapboxgl.Map({
+    mapRef.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
-      center: [-95.7129, 37.0902],
+      center: [-95.7129, 37.0902], // USA center
       zoom: 3,
     });
+    mapRef.current.addControl(new mapboxgl.NavigationControl());
 
-    map.current.addControl(new mapboxgl.NavigationControl());
+    // when style & sources are ready, draw pins
+    mapRef.current.on('load', () => {
+      updateUserPins();
+    });
+  }, []);
 
-    return () => {
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
-      }
-    };
-  }, [city]);
-
+  // 3) Whenever users, CSV or city filter changes, re-draw
   useEffect(() => {
-    if (!map.current || isLoading || !city) return;
+    if (!mapRef.current?.loaded()) return;
+    updateUserPins();
+  }, [users, allNeighborhoods, selectedCity]);
 
-    map.current.once('load', () => {
-      if (map.current!.getSource('users')) {
-        if (map.current!.getLayer('user-points')) {
-          map.current!.removeLayer('user-points');
-        }
-        map.current!.removeSource('users');
-      }
+  // Utility: remove old layer/source, add new GeoJSON
+  function updateUserPins() {
+    const map = mapRef.current!;
+    // clear old
+    if (map.getLayer('user-points')) {
+      map.removeLayer('user-points');
+    }
+    if (map.getSource('users')) {
+      map.removeSource('users');
+    }
 
-      const cityNeighborhoods = allNeighborhoods.filter(n => n.city_name === city);
-
-      const locationCount = new Map<string, number>();
-
-      const userFeatures = (Array.isArray(users) ? users : []).map(user => {
-        const firstNeighborhood = user.neighborhoods?.[0];
-        const match = cityNeighborhoods.find(n => n.neighborhood === firstNeighborhood);
+    // build features
+    // build features for ALL users, regardless of selectedCity
+    const locCount = new Map<string, number>();
+    const features = users.map(u => {
+        const firstN = u.neighborhoods?.[0];
+        const match = allNeighborhoods.find(
+          n => n.city_name === u.city && n.neighborhood === firstN
+        );
         if (!match) return null;
-        const username = user.email.split('@')[0];
-
         const lng = parseFloat(match.lng);
         const lat = parseFloat(match.lat);
-
         const key = `${lng},${lat}`;
-        const count = locationCount.get(key) || 0;
-        locationCount.set(key, count + 1);
-
-        const offsetLng = lng + (count * 0.005);
-        const offsetLat = lat + (count * 0.005);
-
+        const count = locCount.get(key) || 0;
+        locCount.set(key, count + 1);
         return {
           type: 'Feature',
-          geometry: { type: 'Point', coordinates: [offsetLng, offsetLat] },
+          geometry: {
+            type: 'Point',
+            coordinates: [lng + count * 0.005, lat + count * 0.005],
+          },
           properties: {
-            name: `${user.first_name} ${user.last_name}`,
-            profileUrl: `/user/${username}`,
+            name: `${u.first_name} ${u.last_name}`,
+            profileUrl: `/user/${u.email.split('@')[0]}`,
           },
         };
-      }).filter(Boolean);
+      }).filter(Boolean) as GeoJSON.Feature[];
 
-      if (userFeatures.length > 0) {
-        map.current!.addSource('users', {
-          type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: userFeatures as any,
-          },
-        });
+    // add source + layer
+    map.addSource('users', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features },
+    });
+    map.addLayer({
+      id: 'user-points',
+      type: 'circle',
+      source: 'users',
+      paint: {
+        'circle-radius': 8,
+        'circle-color': '#dc2626',
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#ffffff',
+      },
+    });
 
-        map.current!.addLayer({
-          id: 'user-points',
-          type: 'circle',
-          source: 'users',
-          paint: {
-            'circle-radius': 8,
-            'circle-color': '#dc2626',
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#ffffff',
-          },
-          layout: {
-            'visibility': 'visible',
-          },
-        });
-
-        map.current!.on('mouseenter', 'user-points', (e) => {
-          map.current!.getCanvas().style.cursor = 'pointer';
-
-          const feature = e.features?.[0];
-          if (feature) {
-            const { name } = feature.properties as any;
-            if (name) {
-              if (popupRef.current) {
-                popupRef.current.remove();
-              }
-              popupRef.current = new mapboxgl.Popup({
-                closeButton: false,
-                closeOnClick: false,
-                offset: 15,
-              })
-                .setLngLat((feature.geometry as any).coordinates)
-                .setHTML(`<div style="font-size: 14px; font-weight: 600;">${name}</div>`)
-                .addTo(map.current!);
-            }
-          }
-        });
-
-        map.current!.on('mouseleave', 'user-points', () => {
-          map.current!.getCanvas().style.cursor = '';
-          if (popupRef.current) {
-            popupRef.current.remove();
-            popupRef.current = null;
-          }
-        });
-
-        map.current!.on('click', 'user-points', (e) => {
-          const feature = e.features?.[0];
-          if (feature) {
-            const { profileUrl } = feature.properties as any;
-            if (profileUrl) {
-              window.location.href = profileUrl;
-            }
-          }
-        });
+    // popups & click
+    map.on('mouseenter', 'user-points', e => {
+      map.getCanvas().style.cursor = 'pointer';
+      const feat = e.features?.[0];
+      if (feat) {
+        popupRef.current?.remove();
+        popupRef.current = new mapboxgl.Popup({ offset: 15, closeButton: false })
+          .setLngLat((feat.geometry as any).coordinates)
+          .setHTML(`<strong>${feat.properties!.name}</strong>`)
+          .addTo(map);
       }
+    });
+    map.on('mouseleave', 'user-points', () => {
+      map.getCanvas().style.cursor = '';
+      popupRef.current?.remove();
+      popupRef.current = undefined;
+    });
+    map.on('click', 'user-points', e => {
+      const feat = e.features?.[0];
+      if (feat && feat.properties!.profileUrl) {
+        window.location.href = feat.properties!.profileUrl as string;
+      }
+    });
 
-      if (cityNeighborhoods.length > 0) {
-        const bounds = new mapboxgl.LngLatBounds();
-        cityNeighborhoods.forEach(n => {
+    // adjust viewport
+    if (features.length) {
+      const bounds = new mapboxgl.LngLatBounds();
+      features.forEach(f => bounds.extend((f.geometry as any).coordinates));
+      map.fitBounds(bounds, { padding: 50, maxZoom: selectedCity ? 14 : 5 });
+    }
+  }
+
+  // finally: if they picked a city, zoom _to that city’s bounds_
+  if (selectedCity) {
+      const cityBounds = new mapboxgl.LngLatBounds();
+      allNeighborhoods
+        .filter(n => n.city_name === selectedCity)
+        .forEach(n => {
           const lat = parseFloat(n.lat);
           const lng = parseFloat(n.lng);
           if (!isNaN(lat) && !isNaN(lng)) {
-            bounds.extend([lng, lat]);
+            cityBounds.extend([lng, lat]);
           }
         });
-        map.current!.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+      if (!cityBounds.isEmpty()) {
+        // use mapRef.current here
+        mapRef.current!.fitBounds(cityBounds, { padding: 50, maxZoom: 14 });
       }
-    });
-  }, [city, allNeighborhoods, isLoading, users]);
-
-  const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setCity(e.target.value);
-    if (map.current) {
-      map.current.remove();
-      map.current = null;
-    }
-  };
+  }
 
   return (
-    <div className={`flex flex-col items-center ${!city ? 'min-h-screen justify-start pt-20' : 'space-y-4'}`}>
-      
-      {/* No city selected — show orange bubbles */}
-      {!city && (
-        <div className="flex flex-col items-center space-y-6">
-          <h2 className="text-xl font-semibold text-gray-700 mt-4">
-            Select a city to view Caltech students in that city!
-          </h2>
-          <div className="flex flex-wrap justify-center gap-3 max-w-5xl px-4">
-            {cities.map((cityName, idx) => (
-              <button
-                key={cityName}
-                onClick={() => setCity(cityName)}
-                className={`min-w-[90px] text-center px-4 py-2 ${pastelOranges[idx % pastelOranges.length]} text-white rounded-full hover:brightness-110 text-base shadow transition`}
-              >
-                {cityName}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="relative w-full h-[80vh]">
+      {/* City selector, always visible */}
+      <div className="absolute top-4 left-4 z-10">
+        <select
+          className="border border-gray-300 p-2 rounded-md bg-white"
+          value={selectedCity}
+          onChange={e => setSelectedCity(e.target.value)}
+        >
+          <option value="">All Cities</option>
+          {cities.map(c => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      </div>
 
-      {/* City selected — show dropdown and map */}
-      {city && (
-        <div className="flex flex-col w-full px-4">
-          {/* Dropdown always visible when city is selected */}
-          <div className="flex justify-start mb-4">
-            <select
-              id="city-select"
-              className="border border-gray-300 p-2 rounded-md w-64"
-              onChange={handleCityChange}
-              value={city}
-              disabled={isLoading}
-            >
-              <option value="">Select a City</option>
-              {cities.map((cityName) => (
-                <option key={cityName} value={cityName}>
-                  {cityName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Map */}
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="w-full md:w-3/4">
-              <div ref={mapContainer} className="w-full h-96 md:h-120 rounded-lg shadow" />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Map container */}
+      <div ref={mapContainer} className="w-full h-full rounded-lg shadow" />
     </div>
   );
 }
