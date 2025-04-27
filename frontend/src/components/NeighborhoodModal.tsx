@@ -57,6 +57,7 @@ export default function NeighborhoodModal({
   useEffect(() => {
     if (!mapContainer.current || all.length === 0) return;
     if (map.current) return;
+
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN!;
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -69,6 +70,7 @@ export default function NeighborhoodModal({
     });
 
     map.current.on('load', () => {
+      // add the geojson source
       map.current!.addSource('neighborhoods', {
         type: 'geojson',
         data: {
@@ -84,6 +86,7 @@ export default function NeighborhoodModal({
         },
       });
 
+      // circle layer
       map.current!.addLayer({
         id: 'neighborhood-points',
         type: 'circle',
@@ -97,10 +100,28 @@ export default function NeighborhoodModal({
             '#3b82f6', // blue otherwise
           ],
           'circle-stroke-width': 2,
-          'circle-stroke-color': '#fff',
+          'circle-stroke-color': '#ffffff',
         },
       });
 
+      // **NEW** symbol layer for labels
+      map.current!.addLayer({
+        id: 'neighborhood-labels',
+        type: 'symbol',
+        source: 'neighborhoods',
+        layout: {
+          'text-field': ['get', 'neighborhood'],
+          'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+          'text-size': 12,
+          'text-offset': [0, 1.2],       // push the label down under the dot
+          'text-anchor': 'top',          // anchor at top so offset moves label downward
+        },
+        paint: {
+          'text-color': '#111827',
+        },
+      });
+
+      // click to select/deselect neighborhoods
       map.current!.on('click', 'neighborhood-points', e => {
         const name = (e.features![0].properties! as any).neighborhood;
         setSelected(cur =>
@@ -108,9 +129,9 @@ export default function NeighborhoodModal({
         );
       });
     });
-  }, [all, selected]);
+  }, [all]);
 
-  // update colors on selection change
+  // update circle colors when selection changes
   useEffect(() => {
     if (!map.current) return;
     map.current.setPaintProperty('neighborhood-points', 'circle-color', [
