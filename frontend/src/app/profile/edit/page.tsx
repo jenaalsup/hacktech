@@ -228,10 +228,10 @@ export default function EditProfile() {
          hover shows “Upload Photo” overlay
         */}
         <div className="flex justify-center mb-4">
-          <div
-            className="relative group w-24 h-24 rounded-full overflow-hidden bg-gray-200 cursor-pointer"
-            onClick={() => fileInputRef.current?.click()}
-          >
+        <div
+          className="relative group w-24 h-24 rounded-full overflow-hidden bg-gray-200 cursor-pointer border-4 border-orange-600"
+          onClick={() => fileInputRef.current?.click()}
+        >
             {preview ? (
               <img src={preview} className="object-cover w-full h-full" />
             ) : (
