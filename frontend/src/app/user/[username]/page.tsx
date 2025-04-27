@@ -11,6 +11,7 @@ interface Profile {
   phone_number?: string;
   state?: string;
   city?: string;
+  neighborhoods?: string[];
   looking_for_roommate?: boolean;
   looking_for_friend?: boolean;
   start_date?: string;
@@ -116,6 +117,14 @@ export default function UserProfile() {
               <div>
                 <p className="text-sm text-gray-700">City</p>
                 <p className="font-medium text-gray-900">{profile.city}</p>
+              </div>
+            )}
+            {profile.neighborhoods && profile.neighborhoods.length > 0 && (
+              <div>
+                <p className="text-sm text-gray-700">Neighborhoods</p>
+                <p className="font-medium text-gray-900">
+                  {profile.neighborhoods.join(', ')}
+                </p>
               </div>
             )}
             {typeof profile.looking_for_roommate === 'boolean' && (
