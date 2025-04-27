@@ -25,3 +25,15 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   min-height: 100vh;
 }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.input {
+  @apply block w-full rounded-md border border-gray-200 px-3 py-2 text-gray-900;
+  outline: 1px solid #E5E7EB; /* light gray outline */
+}
+.input:focus {
+  @apply ring-2 ring-orange-500 outline-none; /* orange ring on focus */
+}
