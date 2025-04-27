@@ -52,7 +52,6 @@ export default function Home() {
 
   function handleSort(column: SortColumn) {
     if (sortColumn === column) {
-      // Toggle asc/desc if clicking same column
       setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortColumn(column);
@@ -92,8 +91,10 @@ export default function Home() {
     });
 
   return (
-    <div className="min-h-screen p-8 flex flex-col items-center">
-      <h1 className="text-3xl font-bold mb-6 text-center w-full">find a caltech roommate or a friend for the summer 🏡👯‍♀️</h1>
+    <div className="flex flex-col flex-grow items-center p-8">
+      <h1 className="text-3xl font-bold mb-6 text-center w-full">
+        find a caltech roommate or a friend for the summer 🏡👯‍♀️
+      </h1>
 
       {/* Toggle Buttons */}
       <div className="flex gap-4 mb-8">
@@ -112,11 +113,10 @@ export default function Home() {
       </div>
 
       {/* Map or List View */}
-      <div className="w-full">
+      {/* Map or List View */}
+      <div className="w-full flex-grow">
         {viewMode === 'map' ? (
-          <div className="w-full h-[500px] mt-4 mb-6">
-            <MapComponent />
-          </div>
+          <MapComponent />
         ) : (
           <div className="w-full overflow-x-auto">
             {loading ? (
