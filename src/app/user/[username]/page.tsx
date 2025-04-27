@@ -77,7 +77,7 @@ export default function UserProfile() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="relative max-w-md w-full bg-gray-100 p-8 rounded-xl shadow-md">
         <h1 className="text-3xl font-bold mb-4 text-center text-gray-900">
-          {isOwnProfile ? 'Your Profile' : `${cleanUsername}'s Profile`}
+          {isOwnProfile ? 'Your Profile' : `@${cleanUsername}`}
         </h1>
 
         {/* Edit Button */}
