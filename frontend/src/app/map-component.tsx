@@ -75,7 +75,7 @@ export default function MapComponent() {
             setCities(uniqueCities);
             setIsLoading(false);
           },
-          error: (error) => {
+          error: (error: e) => {
             console.error('Error parsing CSV:', error);
             setIsLoading(false);
           }
