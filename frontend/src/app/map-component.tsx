@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { parse } from 'papaparse';
 
-// Define the type for neighborhood data
+// Define types
 interface Neighborhood {
   neighborhood: string;
   neighborhood_ascii: string;
@@ -21,27 +21,13 @@ interface Neighborhood {
   id: string;
 }
 
-// Test users hardcoded for Boston
-const testUsers = [
-  {
-    id: '1',
-    name: 'Alice',
-    neighborhood: 'Back Bay',
-    profileUrl: '/profile/alice',
-  },
-  {
-    id: '2',
-    name: 'Bob',
-    neighborhood: 'Beacon Hill',
-    profileUrl: '/profile/bob',
-  },
-  {
-    id: '3',
-    name: 'Charlie',
-    neighborhood: 'South End',
-    profileUrl: '/profile/charlie',
-  },
-];
+interface User {
+  _id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  neighborhoods: string[]; // first neighborhood used
+}
 
 export default function MapComponent() {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -52,9 +38,10 @@ export default function MapComponent() {
   const [cities, setCities] = useState<string[]>([]);
   const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>([]);
   const [allNeighborhoods, setAllNeighborhoods] = useState<Neighborhood[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Load CSV data
+  // Load neighborhood CSV
   useEffect(() => {
     async function loadCSVData() {
       try {
@@ -75,7 +62,7 @@ export default function MapComponent() {
             setCities(uniqueCities);
             setIsLoading(false);
           },
-          error: (error: e) => {
+          error: (error: any) => {
             console.error('Error parsing CSV:', error);
             setIsLoading(false);
           }
@@ -86,7 +73,18 @@ export default function MapComponent() {
       }
     }
 
+    async function loadUsers() {
+      try {
+        const response = await fetch('/api/users'); // Fetch all users
+        const data = await response.json();
+        setUsers(data);
+      } catch (error) {
+        console.error('Error loading users:', error);
+      }
+    }
+
     loadCSVData();
+    loadUsers();
   }, []);
 
   // Initialize map
@@ -104,7 +102,6 @@ export default function MapComponent() {
 
     map.current.addControl(new mapboxgl.NavigationControl());
 
-    // Clean up on unmount
     return () => {
       if (map.current) {
         map.current.remove();
@@ -113,12 +110,11 @@ export default function MapComponent() {
     };
   }, []);
 
-  // Update neighborhoods and users when city changes
+  // Update map when city, neighborhoods, users change
   useEffect(() => {
     if (!map.current || isLoading) return;
 
-    // Clear user layer if changing away from Boston
-    if (map.current.getSource('users') && city !== 'Boston') {
+    if (map.current.getSource('users')) {
       if (map.current.getLayer('user-points')) {
         map.current.removeLayer('user-points');
       }
@@ -202,73 +198,68 @@ export default function MapComponent() {
       });
     }
 
-    // If Boston, also add users
-    if (city === 'Boston') {
-      const bostonNeighborhoods = allNeighborhoods.filter(n => n.city_name === 'Boston');
+    // Now create user points
+    const cityNeighborhoods = allNeighborhoods.filter(n => n.city_name === city);
 
-      const userFeatures = testUsers.map(user => {
-        const match = bostonNeighborhoods.find(n => n.neighborhood === user.neighborhood);
-        if (!match) return null;
-        return {
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [parseFloat(match.lng), parseFloat(match.lat)],
-          },
-          properties: {
-            userId: user.id,
-            name: user.name,
-            profileUrl: user.profileUrl,
-          },
-        };
-      }).filter(Boolean);
+    const userFeatures = users.map(user => {
+      const firstNeighborhood = user.neighborhoods?.[0];
+      const match = cityNeighborhoods.find(n => n.neighborhood === firstNeighborhood);
+      if (!match) return null;
 
-      if (map.current.getSource('users')) {
-        (map.current.getSource('users') as mapboxgl.GeoJSONSource).setData({
+      const username = user.email.split('@')[0];
+      return {
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [parseFloat(match.lng), parseFloat(match.lat)],
+        },
+        properties: {
+          userId: user._id,
+          name: `${user.first_name} ${user.last_name}`,
+          profileUrl: `/user/${username}`,
+        },
+      };
+    }).filter(Boolean);
+
+    if (userFeatures.length > 0) {
+      map.current.addSource('users', {
+        type: 'geojson',
+        data: {
           type: 'FeatureCollection',
           features: userFeatures as any,
-        });
-      } else {
-        map.current.addSource('users', {
-          type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: userFeatures as any,
-          },
-        });
+        },
+      });
 
-        map.current.addLayer({
-          id: 'user-points',
-          type: 'circle',
-          source: 'users',
-          paint: {
-            'circle-radius': 8,
-            'circle-color': '#dc2626', // Red
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#ffffff',
-          },
-        });
+      map.current.addLayer({
+        id: 'user-points',
+        type: 'circle',
+        source: 'users',
+        paint: {
+          'circle-radius': 8,
+          'circle-color': '#dc2626',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
 
-        map.current.on('click', 'user-points', (e) => {
-          const feature = e.features?.[0];
-          if (feature) {
-            const { profileUrl } = feature.properties as any;
-            if (profileUrl) {
-              window.location.href = profileUrl;
-            }
+      map.current.on('click', 'user-points', (e) => {
+        const feature = e.features?.[0];
+        if (feature) {
+          const { profileUrl } = feature.properties as any;
+          if (profileUrl) {
+            window.location.href = profileUrl;
           }
-        });
+        }
+      });
 
-        map.current.on('mouseenter', 'user-points', () => {
-          map.current!.getCanvas().style.cursor = 'pointer';
-        });
-        map.current.on('mouseleave', 'user-points', () => {
-          map.current!.getCanvas().style.cursor = '';
-        });
-      }
+      map.current.on('mouseenter', 'user-points', () => {
+        map.current!.getCanvas().style.cursor = 'pointer';
+      });
+      map.current.on('mouseleave', 'user-points', () => {
+        map.current!.getCanvas().style.cursor = '';
+      });
     }
 
-    // Fit bounds
     if (filteredNeighborhoods.length > 0) {
       const bounds = new mapboxgl.LngLatBounds();
       filteredNeighborhoods.forEach(n => {
@@ -284,7 +275,7 @@ export default function MapComponent() {
         maxZoom: 14,
       });
     }
-  }, [city, allNeighborhoods, isLoading]);
+  }, [city, allNeighborhoods, isLoading, users]);
 
   const handleCityChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedCity = event.target.value;
@@ -330,52 +321,7 @@ export default function MapComponent() {
         <div className="w-full md:w-3/4">
           <div ref={mapContainer} className="w-full h-96 md:h-120 rounded-lg shadow" />
         </div>
-
-        {city && (
-          <div className="w-full md:w-1/4 border rounded-lg shadow p-4 max-h-96 md:max-h-120 overflow-y-auto">
-            <h3 className="font-bold text-lg mb-2">Neighborhoods in {city}</h3>
-            {neighborhoods.length === 0 ? (
-              <p>No neighborhoods found</p>
-            ) : (
-              <ul className="space-y-1">
-                {neighborhoods.map((n) => (
-                  <li
-                    key={n.id}
-                    className={`p-2 rounded cursor-pointer hover:bg-blue-50 ${
-                      selectedNeighborhood === n.neighborhood ? 'bg-blue-100 font-medium' : ''
-                    }`}
-                    onClick={() => setSelectedNeighborhood(n.neighborhood)}
-                  >
-                    {n.neighborhood}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
       </div>
-
-      {selectedNeighborhood && (
-        <div className="p-4 bg-blue-50 rounded-lg">
-          <h3 className="font-medium">Selected Neighborhood: {selectedNeighborhood}</h3>
-          {city && <p className="text-sm text-gray-600">City: {city}</p>}
-
-          {neighborhoods.find(n => n.neighborhood === selectedNeighborhood) && (
-            <div className="mt-2 text-sm">
-              <p>
-                <span className="font-medium">State:</span> {
-                  neighborhoods.find(n => n.neighborhood === selectedNeighborhood)?.state_name
-                }
-              </p>
-              <p>
-                <span className="font-medium">ZIP Codes:</span> {
-                  neighborhoods.find(n => n.neighborhood === selectedNeighborhood)?.zips || 'N/A'
-                }
-              </p>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
