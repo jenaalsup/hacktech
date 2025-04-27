@@ -10,12 +10,11 @@ interface User {
   last_name: string;
   email: string;
   neighborhoods: string[];
-  country: string;
   state?: string;
   city: string;
 }
 
-type SortColumn = 'name' | 'email' | 'country' | 'state' | 'city' | 'neighborhood';
+type SortColumn = 'name' | 'email' | 'state' | 'city' | 'neighborhood';
 type SortDirection = 'asc' | 'desc';
 
 export default function Home() {
@@ -77,7 +76,6 @@ export default function Home() {
         switch (sortColumn) {
           case 'name': return `${u.first_name} ${u.last_name}`.toLowerCase();
           case 'email': return u.email.toLowerCase();
-          case 'country': return (u.country || '').toLowerCase();
           case 'state': return (u.state || '').toLowerCase();
           case 'city': return u.city.toLowerCase();
           case 'neighborhood': return (u.neighborhoods?.[0] || '').toLowerCase();
@@ -143,9 +141,6 @@ export default function Home() {
                       <th onClick={() => handleSort('email')} className="text-left px-4 py-2 cursor-pointer">
                         Email {sortColumn === 'email' && (sortDirection === 'asc' ? '▲' : '▼')}
                       </th>
-                      <th onClick={() => handleSort('country')} className="text-left px-4 py-2 cursor-pointer">
-                        Country {sortColumn === 'country' && (sortDirection === 'asc' ? '▲' : '▼')}
-                      </th>
                       <th onClick={() => handleSort('state')} className="text-left px-4 py-2 cursor-pointer">
                         State {sortColumn === 'state' && (sortDirection === 'asc' ? '▲' : '▼')}
                       </th>
@@ -167,7 +162,6 @@ export default function Home() {
                             </Link>
                           </td>
                           <td className="px-4 py-2">{user.email}</td>
-                          <td className="px-4 py-2">{user.country || ''}</td>
                           <td className="px-4 py-2">{user.state || ''}</td>
                           <td className="px-4 py-2">{user.city || ''}</td>
                           <td className="px-4 py-2">{user.neighborhoods?.[0] || ''}</td>
