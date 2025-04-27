@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import NeighborhoodModal from '@/components/NeighborhoodModal';
 import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
@@ -49,6 +50,8 @@ export default function EditProfile() {
     other_notes: '',
     profile_picture: undefined,
   });
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [csvData, setCsvData] = useState<CSVRow[]>([]);
   const [availableStates, setAvailableStates] = useState<string[]>([]);
@@ -219,6 +222,12 @@ export default function EditProfile() {
     }
   };
 
+  const closeModal = () => setIsModalOpen(false);
+  const saveNeighborhoods = (neighs: string[]) => {
+    setProfileData((p) => ({ ...p, neighborhoods: neighs }));
+    setIsModalOpen(false);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-2xl w-full space-y-8 p-10 bg-white rounded-xl shadow-md">
@@ -378,10 +387,11 @@ export default function EditProfile() {
             ))}
             <button
               type="button"
-              onClick={addNeighborhood}
-              className="text-sm text-orange-600 hover:underline"
+              onClick={() => setIsModalOpen(true)}
+              disabled={!profileData.city}
+              className="text-sm text-orange-600 hover:underline disabled:opacity-50"
             >
-              + Add Neighborhood
+              Edit Neighborhoods
             </button>
           </div>
 
@@ -456,6 +466,16 @@ export default function EditProfile() {
 
         </form>
       </div>
+      {isModalOpen && (
+        <NeighborhoodModal
+          city={profileData.city}
+          initialSelected={profileData.neighborhoods}
+          onSave={saveNeighborhoods}
+          onClose={closeModal}
+        />
+      )}
     </div>
+
+    
   );
 }
