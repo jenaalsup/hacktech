@@ -11,6 +11,7 @@ interface User {
   email: string;
   neighborhoods: string[];
   country: string;
+  state?: string;    // might be present
   city: string;
 }
 
@@ -44,18 +45,36 @@ export default function Home() {
     fetchUsers();
   }, []);
 
-  const filteredUsers = users.filter(user => {
-    const search = searchTerm.toLowerCase();
-    const combinedFields = [
-      user.first_name,
-      user.last_name,
-      user.email,
-      user.country,
-      user.city,
-      ...(user.neighborhoods || []),
-    ].join(' ').toLowerCase();
-    return combinedFields.includes(search);
-  });
+  // Determine a rank for sorting priority
+  function rankUser(user: User, term: string): number {
+    const s = term.toLowerCase();
+    // 0: neighborhood match
+    if (user.neighborhoods.some(n => n.toLowerCase().includes(s))) return 0;
+    // 1: city match
+    if (user.city.toLowerCase().includes(s)) return 1;
+    // 2: state match (if defined)
+    if (user.state?.toLowerCase().includes(s)) return 2;
+    // 3: name match (first or last)
+    const fullName = `${user.first_name} ${user.last_name}`.toLowerCase();
+    if (fullName.includes(s)) return 3;
+    // anything else (shouldn't happen since we've filtered) 
+    return 4;
+  }
+
+  const filteredAndSorted = users
+    .filter(user => {
+      const search = searchTerm.toLowerCase();
+      const combined = [
+        ...user.neighborhoods,
+        user.city,
+        user.state || '',
+        user.first_name,
+        user.last_name,
+        user.email,
+      ].join(' ').toLowerCase();
+      return combined.includes(search);
+    })
+    .sort((a, b) => rankUser(a, searchTerm) - rankUser(b, searchTerm));
 
   return (
     <div className="min-h-screen p-8 flex flex-col items-center">
@@ -106,13 +125,14 @@ export default function Home() {
                       <th className="text-left px-4 py-2">Name</th>
                       <th className="text-left px-4 py-2">Email</th>
                       <th className="text-left px-4 py-2">Country</th>
+                      <th className="text-left px-4 py-2">State</th>
                       <th className="text-left px-4 py-2">City</th>
                       <th className="text-left px-4 py-2">Neighborhood</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUsers.length > 0 ? (
-                      filteredUsers.map(user => (
+                    {filteredAndSorted.length > 0 ? (
+                      filteredAndSorted.map(user => (
                         <tr key={user._id} className="border-t">
                           <td className="px-4 py-2">
                             <Link href={`/user/${user.email.split('@')[0]}`} className="text-blue-600 hover:underline">
@@ -121,13 +141,14 @@ export default function Home() {
                           </td>
                           <td className="px-4 py-2">{user.email}</td>
                           <td className="px-4 py-2">{user.country || 'N/A'}</td>
+                          <td className="px-4 py-2">{user.state || 'N/A'}</td>
                           <td className="px-4 py-2">{user.city || 'N/A'}</td>
                           <td className="px-4 py-2">{user.neighborhoods?.[0] || 'N/A'}</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="text-center px-4 py-8 text-gray-500">
+                        <td colSpan={6} className="text-center px-4 py-8 text-gray-500">
                           No users found.
                         </td>
                       </tr>

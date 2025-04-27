@@ -173,9 +173,10 @@ export default function MapComponent() {
         source: 'neighborhoods',
         layout: {
           'text-field': ['get', 'neighborhood'],
-          'text-offset': [0, 1.5],
+          'text-offset': [0, 1.2],
           'text-anchor': 'top',
           'text-size': 12,
+          'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
         },
         paint: {
           'text-color': '#111827',
