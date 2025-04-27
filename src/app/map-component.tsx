@@ -31,8 +31,8 @@ interface User {
 
 export default function MapComponent() {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map>();
-  const popupRef = useRef<mapboxgl.Popup>();
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const popupRef = useRef<mapboxgl.Popup | null>(null);
 
   const [allNeighborhoods, setAllNeighborhoods] = useState<Neighborhood[]>([]);
   const [allCities, setAllCities] = useState<CityRow[]>([]);
@@ -171,7 +171,7 @@ export default function MapComponent() {
     map.on('mouseleave', 'user-points', () => {
       map.getCanvas().style.cursor = '';
       popupRef.current?.remove();
-      popupRef.current = undefined;
+      popupRef.current = null;
     });
     map.on('click', 'user-points', e => {
       const f = e.features?.[0];
