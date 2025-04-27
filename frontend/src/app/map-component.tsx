@@ -83,26 +83,26 @@ export default function MapComponent() {
   }, []);
 
   useEffect(() => {
-    if (map.current || !mapContainer.current) return;
-
+    if (!city || map.current || !mapContainer.current) return;
+  
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
-
+  
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
       center: [-95.7129, 37.0902],
       zoom: 3,
     });
-
+  
     map.current.addControl(new mapboxgl.NavigationControl());
-
+  
     return () => {
       if (map.current) {
         map.current.remove();
         map.current = null;
       }
     };
-  }, []);
+  }, [city]);  
 
   useEffect(() => {
     if (!map.current || isLoading) return;
@@ -236,10 +236,11 @@ export default function MapComponent() {
   };
 
   return (
-    <div className="flex flex-col space-y-4">
-      <div className="flex flex-col sm:flex-row gap-4 items-center">
-        <div className="w-full sm:w-128">
-          <label htmlFor="city-select" className="block text-sm font-medium text-gray-700 mb-1">
+    <div className={`flex flex-col ${!city ? 'min-h-screen justify-center items-center' : 'space-y-4'}`}>
+      {/* Dropdown */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center w-full sm:w-128 p-4">
+        <div className="w-full">
+          <label htmlFor="city-select" className="block text-sm font-medium text-gray-700 mb-1 text-center sm:text-left">
             Select a city to view Caltech students in that city!
           </label>
           <select
@@ -258,12 +259,15 @@ export default function MapComponent() {
           </select>
         </div>
       </div>
-
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="w-full md:w-3/4">
-          <div ref={mapContainer} className="w-full h-96 md:h-120 rounded-lg shadow" />
+  
+      {/* Only show the map if a city is selected */}
+      {city && (
+        <div className="flex flex-col md:flex-row gap-4 w-full">
+          <div className="w-full md:w-3/4">
+            <div ref={mapContainer} className="w-full h-96 md:h-120 rounded-lg shadow" />
+          </div>
         </div>
-      </div>
+      )}
     </div>
-  );
-}
+  );  
+}  
