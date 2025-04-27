@@ -2,11 +2,10 @@
 import { NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
 
-const client = new MongoClient(process.env.MONGODB_URI!);
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const username = searchParams.get('username');
+
   if (!username) {
     return NextResponse.json(
       { message: 'Missing username parameter' },
@@ -14,13 +13,14 @@ export async function GET(request: Request) {
     );
   }
 
+  const client = new MongoClient(process.env.MONGODB_URI!);
+
   try {
     await client.connect();
     const dbName = process.env.MONGODB_DB || 'cumble';
     const db = client.db(dbName);
     const profiles = db.collection('profiles');
 
-    // look up by email = "<username>@caltech.edu"
     const email = `${username}@caltech.edu`;
     const userProfile = await profiles.findOne({ email });
 

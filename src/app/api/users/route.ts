@@ -2,13 +2,14 @@
 import { NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
 
-const uri = process.env.MONGODB_URI;
-if (!uri) {
-  throw new Error('MONGODB_URI is not defined'); 
-}
-const client = new MongoClient(uri);
-
 export async function GET() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error('MONGODB_URI is not defined'); 
+  }
+
+  const client = new MongoClient(uri);
+
   try {
     await client.connect();
     const database = client.db('cumble'); // <-- Replace with your real db name
@@ -17,7 +18,7 @@ export async function GET() {
     // Fetch all users
     const allUsers = await profiles.find({}).toArray();
 
-    // Optional: only return necessary fields (not the whole Mongo _id and internal stuff)
+    // Optional: only return necessary fields
     const sanitizedUsers = allUsers.map(user => ({
       _id: user._id,
       first_name: user.first_name,
