@@ -14,18 +14,18 @@ export default function ProfileGuard({ children }: { children: ReactNode }) {
     // still waiting on Firebase?
     if (loading) return;
 
-    // if not signed in, send to signin
-    if (!currentUser) {
-      router.replace('/signin');
-      return;
-    }
-
     // allow these paths without a profile
     if (
       pathname === '/signin' ||
       pathname === '/signup' ||
       pathname === '/profile/edit'
     ) {
+      return; // Do not redirect if on these pages
+    }
+
+    // if not signed in, send to signin
+    if (!currentUser) {
+      router.replace('/signin'); // Redirect to signin if not signed in
       return;
     }
 
@@ -38,7 +38,7 @@ export default function ProfileGuard({ children }: { children: ReactNode }) {
         if (!res.ok) throw new Error();
         const { exists } = await res.json();
         if (!exists) {
-          router.replace('/profile/edit');
+          router.replace('/profile/edit'); // Redirect to edit profile if it doesn't exist
         }
       } catch (err) {
         console.error('Profile check failed', err);

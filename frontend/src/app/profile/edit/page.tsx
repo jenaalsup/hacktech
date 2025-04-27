@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import NeighborhoodModal from '@/components/NeighborhoodModal';
-import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { parse } from 'papaparse';
@@ -57,7 +56,6 @@ export default function EditProfile() {
   const [availableStates, setAvailableStates] = useState<string[]>([]);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   
-  // for image upload
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
@@ -127,7 +125,6 @@ export default function EditProfile() {
     const { name, value, type } = e.target;
     const checked = type === 'checkbox' && (e.target as HTMLInputElement).checked;
 
-    // if state changes: reset city + neighborhoods
     if (name === 'state') {
       setProfileData(p => ({
         ...p,
@@ -138,7 +135,6 @@ export default function EditProfile() {
       return;
     }
 
-    // if city changes: reset neighborhoods only
     if (name === 'city') {
       setProfileData(p => ({
         ...p,
@@ -147,7 +143,12 @@ export default function EditProfile() {
       }));
       return;
     }
-  }
+
+    setProfileData(p => ({
+      ...p,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
 
   const handleNeighborhoodChange = (index: number, value: string) => {
     const updatedNeighborhoods = [...profileData.neighborhoods];
@@ -174,14 +175,12 @@ export default function EditProfile() {
     }));
   };
 
-  // if they already had a profile_picture saved, show it
   useEffect(() => {
     if (profileData.profile_picture) {
       setPreview(profileData.profile_picture);
     }
   }, [profileData.profile_picture]);
 
-  // when they pick a file, crop & compress it
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -196,7 +195,6 @@ export default function EditProfile() {
         const side = Math.min(width, height);
         const sx = (width - side) / 2;
         const sy = (height - side) / 2;
-        // final size: either 480 or the side length if smaller
         const finalSize = side > 480 ? 480 : side;
         const canvas = document.createElement('canvas');
         canvas.width = finalSize;
@@ -207,7 +205,6 @@ export default function EditProfile() {
         } else {
           ctx.drawImage(img, sx, sy, side, side, 0, 0, side, side);
         }
-        // get a JPEG Data-URL
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
         setProcessedImage(dataUrl);
         setPreview(dataUrl);
@@ -226,7 +223,7 @@ export default function EditProfile() {
         body: JSON.stringify({
           ...profileData,
           firebase_id: currentUser?.uid,
-          profile_picture: processedImage, // include the cropped/compressed JPEG
+          profile_picture: processedImage,
         }),
       });
 
@@ -247,15 +244,12 @@ export default function EditProfile() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-2xl w-full space-y-8 p-10 bg-white rounded-xl shadow-md">
         <h2 className="text-3xl font-bold text-center text-gray-900">Complete Your Profile</h2>
-        {/*
-         Avatar uploader: click to open file picker,
-         hover shows “Upload Photo” overlay
-        */}
+
         <div className="flex justify-center mb-4">
-        <div
-          className="relative group w-24 h-24 rounded-full overflow-hidden bg-gray-200 cursor-pointer border-4 border-orange-600"
-          onClick={() => fileInputRef.current?.click()}
-        >
+          <div
+            className="relative group w-24 h-24 rounded-full overflow-hidden bg-gray-200 cursor-pointer border-4 border-orange-600"
+            onClick={() => fileInputRef.current?.click()}
+          >
             {preview ? (
               <img src={preview} className="object-cover w-full h-full" />
             ) : (
@@ -277,6 +271,7 @@ export default function EditProfile() {
             />
           </div>
         </div>
+
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* First Name */}
@@ -330,7 +325,7 @@ export default function EditProfile() {
               />
             </div>
 
-            {/* Country Dropdown */}
+            {/* Country */}
             <div className="flex flex-col">
               <label htmlFor="country" className="text-sm font-medium text-gray-700 mb-1">Country *</label>
               <input
@@ -342,7 +337,7 @@ export default function EditProfile() {
               />
             </div>
 
-            {/* State Dropdown */}
+            {/* State */}
             <div className="flex flex-col">
               <label htmlFor="state" className="text-sm font-medium text-gray-700 mb-1">State *</label>
               <select
@@ -360,7 +355,7 @@ export default function EditProfile() {
               </select>
             </div>
 
-            {/* City Dropdown */}
+            {/* City */}
             <div className="flex flex-col">
               <label htmlFor="city" className="text-sm font-medium text-gray-700 mb-1">City *</label>
               <select
@@ -432,7 +427,7 @@ export default function EditProfile() {
             </label>
           </div>
 
-          {/* Start and End Dates */}
+          {/* Dates */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Start Date *</label>
@@ -458,7 +453,7 @@ export default function EditProfile() {
             </div>
           </div>
 
-          {/* Other Notes */}
+          {/* Notes */}
           <div>
             <textarea
               name="other_notes"
@@ -469,7 +464,7 @@ export default function EditProfile() {
             />
           </div>
 
-          {/* Submit Button */}
+          {/* Submit */}
           <div>
             <button
               type="submit"
@@ -478,7 +473,6 @@ export default function EditProfile() {
               Save Profile
             </button>
           </div>
-
         </form>
       </div>
       {isModalOpen && (
@@ -490,7 +484,5 @@ export default function EditProfile() {
         />
       )}
     </div>
-
-    
   );
 }
