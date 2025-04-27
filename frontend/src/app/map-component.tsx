@@ -4,6 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { parse } from 'papaparse';
 
+const pastelOranges = [
+  'bg-orange-300',
+  'bg-orange-400',
+  'bg-orange-400',
+  'bg-orange-400',
+  'bg-orange-500',
+];
+
 interface Neighborhood {
   neighborhood: string;
   neighborhood_ascii: string;
@@ -74,7 +82,7 @@ export default function MapComponent() {
         const data = await response.json();
         setUsers(data);
       } catch (error) {
-        console.error('Error loading users', error);
+        console.error('Error loading users:', error);
       }
     }
 
@@ -84,151 +92,147 @@ export default function MapComponent() {
 
   useEffect(() => {
     if (!city || map.current || !mapContainer.current) return;
-  
+
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
-  
+
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
       center: [-95.7129, 37.0902],
       zoom: 3,
     });
-  
+
     map.current.addControl(new mapboxgl.NavigationControl());
-  
+
     return () => {
       if (map.current) {
         map.current.remove();
         map.current = null;
       }
     };
-  }, [city]);  
+  }, [city]);
 
   useEffect(() => {
-    if (!map.current || isLoading) return;
+    if (!map.current || isLoading || !city) return;
 
-    if (map.current.getSource('users')) {
-      if (map.current.getLayer('user-points')) {
-        map.current.removeLayer('user-points');
+    map.current.once('load', () => {
+      if (map.current!.getSource('users')) {
+        if (map.current!.getLayer('user-points')) {
+          map.current!.removeLayer('user-points');
+        }
+        map.current!.removeSource('users');
       }
-      map.current.removeSource('users');
-    }
 
-    const cityNeighborhoods = allNeighborhoods.filter(n => n.city_name === city);
+      const cityNeighborhoods = allNeighborhoods.filter(n => n.city_name === city);
 
-    // === UPDATED userFeatures generation ===
-    const locationCount = new Map<string, number>();
+      const locationCount = new Map<string, number>();
 
-    const userFeatures = (Array.isArray(users) ? users : []).map(user => {
-      const firstNeighborhood = user.neighborhoods?.[0];
-      const match = cityNeighborhoods.find(n => n.neighborhood === firstNeighborhood);
-      if (!match) return null;
-      const username = user.email.split('@')[0];
+      const userFeatures = (Array.isArray(users) ? users : []).map(user => {
+        const firstNeighborhood = user.neighborhoods?.[0];
+        const match = cityNeighborhoods.find(n => n.neighborhood === firstNeighborhood);
+        if (!match) return null;
+        const username = user.email.split('@')[0];
 
-      const lng = parseFloat(match.lng);
-      const lat = parseFloat(match.lat);
+        const lng = parseFloat(match.lng);
+        const lat = parseFloat(match.lat);
 
-      const key = `${lng},${lat}`;
-      const count = locationCount.get(key) || 0;
-      locationCount.set(key, count + 1);
+        const key = `${lng},${lat}`;
+        const count = locationCount.get(key) || 0;
+        locationCount.set(key, count + 1);
 
-      // offset each dot a little bit so they don't overlap
-      const offsetLng = lng + (count * 0.005);
-      const offsetLat = lat + (count * 0.005);
+        const offsetLng = lng + (count * 0.005);
+        const offsetLat = lat + (count * 0.005);
 
-      return {
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [offsetLng, offsetLat],
-        },
-        properties: {
-          name: `${user.first_name} ${user.last_name}`,
-          profileUrl: `/user/${username}`,
-        },
-      };
-    }).filter(Boolean);
-    // === END UPDATED userFeatures generation ===
+        return {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [offsetLng, offsetLat] },
+          properties: {
+            name: `${user.first_name} ${user.last_name}`,
+            profileUrl: `/user/${username}`,
+          },
+        };
+      }).filter(Boolean);
 
-    if (userFeatures.length > 0) {
-      map.current.addSource('users', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: userFeatures as any,
-        },
-      });
+      if (userFeatures.length > 0) {
+        map.current!.addSource('users', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: userFeatures as any,
+          },
+        });
 
-      map.current.addLayer({
-        id: 'user-points',
-        type: 'circle',
-        source: 'users',
-        paint: {
-          'circle-radius': 8,
-          'circle-color': '#dc2626',
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff',
-          'circle-allow-overlap': true,
-        },
-        layout: {
-          'visibility': 'visible',
-        },
-      });
+        map.current!.addLayer({
+          id: 'user-points',
+          type: 'circle',
+          source: 'users',
+          paint: {
+            'circle-radius': 8,
+            'circle-color': '#dc2626',
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#ffffff',
+            'circle-allow-overlap': true,
+          },
+          layout: {
+            'visibility': 'visible',
+          },
+        });
 
-      // Popup on hover
-      map.current.on('mouseenter', 'user-points', (e) => {
-        map.current!.getCanvas().style.cursor = 'pointer';
+        // Hover popup
+        map.current!.on('mouseenter', 'user-points', (e) => {
+          map.current!.getCanvas().style.cursor = 'pointer';
 
-        const feature = e.features?.[0];
-        if (feature) {
-          const { name } = feature.properties as any;
-          if (name) {
-            if (popupRef.current) {
-              popupRef.current.remove();
+          const feature = e.features?.[0];
+          if (feature) {
+            const { name } = feature.properties as any;
+            if (name) {
+              if (popupRef.current) {
+                popupRef.current.remove();
+              }
+              popupRef.current = new mapboxgl.Popup({
+                closeButton: false,
+                closeOnClick: false,
+                offset: 15,
+              })
+                .setLngLat((feature.geometry as any).coordinates)
+                .setHTML(`<div style="font-size: 14px; font-weight: 600;">${name}</div>`)
+                .addTo(map.current!);
             }
-            popupRef.current = new mapboxgl.Popup({
-              closeButton: false,
-              closeOnClick: false,
-              offset: 15,
-            })
-              .setLngLat((feature.geometry as any).coordinates)
-              .setHTML(`<div style="font-size: 14px; font-weight: 600;">${name}</div>`)
-              .addTo(map.current!);
           }
-        }
-      });
+        });
 
-      map.current.on('mouseleave', 'user-points', () => {
-        map.current!.getCanvas().style.cursor = '';
-        if (popupRef.current) {
-          popupRef.current.remove();
-          popupRef.current = null;
-        }
-      });
-
-      // Click to go to profile
-      map.current.on('click', 'user-points', (e) => {
-        const feature = e.features?.[0];
-        if (feature) {
-          const { profileUrl } = feature.properties as any;
-          if (profileUrl) {
-            window.location.href = profileUrl;
+        map.current!.on('mouseleave', 'user-points', () => {
+          map.current!.getCanvas().style.cursor = '';
+          if (popupRef.current) {
+            popupRef.current.remove();
+            popupRef.current = null;
           }
-        }
-      });
-    }
+        });
 
-    if (cityNeighborhoods.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds();
-      cityNeighborhoods.forEach(n => {
-        const lat = parseFloat(n.lat);
-        const lng = parseFloat(n.lng);
-        if (!isNaN(lat) && !isNaN(lng)) {
-          bounds.extend([lng, lat]);
-        }
-      });
-      map.current.fitBounds(bounds, { padding: 50, maxZoom: 14 });
-    }
+        // Click to go to profile
+        map.current!.on('click', 'user-points', (e) => {
+          const feature = e.features?.[0];
+          if (feature) {
+            const { profileUrl } = feature.properties as any;
+            if (profileUrl) {
+              window.location.href = profileUrl;
+            }
+          }
+        });
+      }
+
+      if (cityNeighborhoods.length > 0) {
+        const bounds = new mapboxgl.LngLatBounds();
+        cityNeighborhoods.forEach(n => {
+          const lat = parseFloat(n.lat);
+          const lng = parseFloat(n.lng);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            bounds.extend([lng, lat]);
+          }
+        });
+        map.current!.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+      }
+    });
   }, [city, allNeighborhoods, isLoading, users]);
 
   const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -236,38 +240,37 @@ export default function MapComponent() {
   };
 
   return (
-    <div className={`flex flex-col ${!city ? 'min-h-screen justify-center items-center' : 'space-y-4'}`}>
-      {/* Dropdown */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center w-full sm:w-128 p-4">
-        <div className="w-full">
-          <label htmlFor="city-select" className="block text-sm font-medium text-gray-700 mb-1 text-center sm:text-left">
+    <div className={`flex flex-col items-center ${!city ? 'min-h-screen justify-start pt-20' : 'space-y-4'}`}>
+      
+      {/* City Select */}
+      {!city && (
+        <div className="flex flex-col items-center space-y-6">
+          <h2 className="text-xl font-semibold text-gray-700 mt-4">
             Select a city to view Caltech students in that city!
-          </label>
-          <select
-            id="city-select"
-            className="w-full p-2 border border-gray-300 rounded-md"
-            onChange={handleCityChange}
-            value={city}
-            disabled={isLoading}
-          >
-            <option value="">Select a City</option>
-            {cities.map((cityName) => (
-              <option key={cityName} value={cityName}>
+          </h2>
+
+          <div className="flex flex-wrap justify-center gap-3 max-w-5xl px-4">
+            {cities.map((cityName, idx) => (
+              <button
+                key={cityName}
+                onClick={() => setCity(cityName)}
+                className={`min-w-[90px] text-center px-4 py-2 ${pastelOranges[idx % pastelOranges.length]} text-white rounded-full hover:brightness-110 text-base shadow transition`}
+              >
                 {cityName}
-              </option>
+              </button>
             ))}
-          </select>
+          </div>
         </div>
-      </div>
-  
-      {/* Only show the map if a city is selected */}
+      )}
+
+      {/* Map */}
       {city && (
-        <div className="flex flex-col md:flex-row gap-4 w-full">
+        <div className="flex flex-col md:flex-row gap-4 w-full p-4">
           <div className="w-full md:w-3/4">
             <div ref={mapContainer} className="w-full h-96 md:h-120 rounded-lg shadow" />
           </div>
         </div>
       )}
     </div>
-  );  
-}  
+  );
+}
