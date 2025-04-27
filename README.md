@@ -9,7 +9,6 @@ Neighborhood data: [https://simplemaps.com/data/us-neighborhoods](https://simple
 
 # How to run
 ```bash
-cd into /frontend
 npm run dev
 ```
 Go to [http://localhost:3000](http://localhost:3000)
