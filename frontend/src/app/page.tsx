@@ -11,15 +11,20 @@ interface User {
   email: string;
   neighborhoods: string[];
   country: string;
-  state?: string;    // might be present
+  state?: string;
   city: string;
 }
+
+type SortColumn = 'name' | 'email' | 'country' | 'state' | 'city' | 'neighborhood';
+type SortDirection = 'asc' | 'desc';
 
 export default function Home() {
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [sortColumn, setSortColumn] = useState<SortColumn>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   useEffect(() => {
     async function fetchUsers() {
@@ -45,20 +50,14 @@ export default function Home() {
     fetchUsers();
   }, []);
 
-  // Determine a rank for sorting priority
-  function rankUser(user: User, term: string): number {
-    const s = term.toLowerCase();
-    // 0: neighborhood match
-    if (user.neighborhoods.some(n => n.toLowerCase().includes(s))) return 0;
-    // 1: city match
-    if (user.city.toLowerCase().includes(s)) return 1;
-    // 2: state match (if defined)
-    if (user.state?.toLowerCase().includes(s)) return 2;
-    // 3: name match (first or last)
-    const fullName = `${user.first_name} ${user.last_name}`.toLowerCase();
-    if (fullName.includes(s)) return 3;
-    // anything else (shouldn't happen since we've filtered) 
-    return 4;
+  function handleSort(column: SortColumn) {
+    if (sortColumn === column) {
+      // Toggle asc/desc if clicking same column
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
   }
 
   const filteredAndSorted = users
@@ -74,7 +73,23 @@ export default function Home() {
       ].join(' ').toLowerCase();
       return combined.includes(search);
     })
-    .sort((a, b) => rankUser(a, searchTerm) - rankUser(b, searchTerm));
+    .sort((a, b) => {
+      const getValue = (u: User) => {
+        switch (sortColumn) {
+          case 'name': return `${u.first_name} ${u.last_name}`.toLowerCase();
+          case 'email': return u.email.toLowerCase();
+          case 'country': return (u.country || '').toLowerCase();
+          case 'state': return (u.state || '').toLowerCase();
+          case 'city': return u.city.toLowerCase();
+          case 'neighborhood': return (u.neighborhoods?.[0] || '').toLowerCase();
+        }
+      };
+      const valA = getValue(a);
+      const valB = getValue(b);
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
 
   return (
     <div className="min-h-screen p-8 flex flex-col items-center">
@@ -109,41 +124,53 @@ export default function Home() {
             ) : (
               <>
                 {/* Search Bar */}
-                <div className="mb-4 flex justify-end">
+                <div className="mb-4">
                   <input
                     type="text"
                     placeholder="Search users..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="border border-gray-300 p-2 rounded-md w-full md:w-1/2"
+                    className="border border-gray-300 p-2 rounded-md w-full"
                   />
                 </div>
 
                 <table className="min-w-full bg-white border border-gray-200 rounded-md">
                   <thead>
                     <tr className="bg-gray-100">
-                      <th className="text-left px-4 py-2">Name</th>
-                      <th className="text-left px-4 py-2">Email</th>
-                      <th className="text-left px-4 py-2">Country</th>
-                      <th className="text-left px-4 py-2">State</th>
-                      <th className="text-left px-4 py-2">City</th>
-                      <th className="text-left px-4 py-2">Neighborhood</th>
+                      <th onClick={() => handleSort('name')} className="text-left px-4 py-2 cursor-pointer">
+                        Name {sortColumn === 'name' && (sortDirection === 'asc' ? '▲' : '▼')}
+                      </th>
+                      <th onClick={() => handleSort('email')} className="text-left px-4 py-2 cursor-pointer">
+                        Email {sortColumn === 'email' && (sortDirection === 'asc' ? '▲' : '▼')}
+                      </th>
+                      <th onClick={() => handleSort('country')} className="text-left px-4 py-2 cursor-pointer">
+                        Country {sortColumn === 'country' && (sortDirection === 'asc' ? '▲' : '▼')}
+                      </th>
+                      <th onClick={() => handleSort('state')} className="text-left px-4 py-2 cursor-pointer">
+                        State {sortColumn === 'state' && (sortDirection === 'asc' ? '▲' : '▼')}
+                      </th>
+                      <th onClick={() => handleSort('city')} className="text-left px-4 py-2 cursor-pointer">
+                        City {sortColumn === 'city' && (sortDirection === 'asc' ? '▲' : '▼')}
+                      </th>
+                      <th onClick={() => handleSort('neighborhood')} className="text-left px-4 py-2 cursor-pointer">
+                        Neighborhood {sortColumn === 'neighborhood' && (sortDirection === 'asc' ? '▲' : '▼')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredAndSorted.length > 0 ? (
                       filteredAndSorted.map(user => (
-                        <tr key={user._id} className="border-t">
+                        <tr key={user._id} className="border-t border-gray-200 hover:bg-gray-50">
                           <td className="px-4 py-2">
-                            <Link href={`/user/${user.email.split('@')[0]}`} className="text-blue-600 hover:underline">
+                            <Link href={`/user/${user.email.split('@')[0]}`} className="text-orange-600 hover:text-orange-700 hover:underline">
                               {user.first_name} {user.last_name}
                             </Link>
                           </td>
                           <td className="px-4 py-2">{user.email}</td>
-                          <td className="px-4 py-2">{user.country || 'N/A'}</td>
-                          <td className="px-4 py-2">{user.state || 'N/A'}</td>
-                          <td className="px-4 py-2">{user.city || 'N/A'}</td>
-                          <td className="px-4 py-2">{user.neighborhoods?.[0] || 'N/A'}</td>
+                          <td className="px-4 py-2">{user.country || ''}</td>
+                          <td className="px-4 py-2">{user.state || ''}</td>
+                          <td className="px-4 py-2">{user.city || ''}</td>
+                          <td className="px-4 py-2">{user.neighborhoods?.[0] || ''}</td>
                         </tr>
                       ))
                     ) : (

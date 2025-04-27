@@ -264,7 +264,7 @@ export default function MapComponent() {
               ? 'Loading neighborhoods...'
               : city
                 ? `Showing users in ${city}`
-                : 'Select a city to view users'}
+                : 'Select a city to view Caltech students in that city!'}
           </p>
         </div>
       </div>
