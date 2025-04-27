@@ -65,7 +65,7 @@ export default function MapComponent() {
             setCities(uniqueCities);
             setIsLoading(false);
           },
-          error: (err) => {
+          error: (err: Error) => {
             console.error('Error parsing CSV', err);
             setIsLoading(false);
           }
@@ -171,7 +171,6 @@ export default function MapComponent() {
             'circle-color': '#dc2626',
             'circle-stroke-width': 2,
             'circle-stroke-color': '#ffffff',
-            'circle-allow-overlap': true,
           },
           layout: {
             'visibility': 'visible',
