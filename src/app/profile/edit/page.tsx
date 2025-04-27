@@ -216,6 +216,10 @@ export default function EditProfile() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (new Date(profileData.end_date) < new Date(profileData.start_date)) {
+      alert('End date cannot be before Start date.');
+      return;
+    }
     try {
       const res = await fetch('/api/profile', {
         method: 'POST',
@@ -457,6 +461,7 @@ export default function EditProfile() {
                 onChange={handleChange}
                 className="input"
                 required
+                min={profileData.start_date.split('T')[0]}
               />
             </div>
           </div>
