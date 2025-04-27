@@ -23,13 +23,14 @@ interface Profile {
 export default function UserProfile() {
   const { username } = useParams();
   const { currentUser } = useAuth();
+  console.log('currentUser:', currentUser);
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notFound, setNotFound] = useState(false);
 
   const cleanUsername = Array.isArray(username) ? username[0] : username ?? '';
-  const currentUsername = currentUser?.email?.split('@')[0] || '';
-  const isOwnProfile = username === currentUsername;
+  const currentUsername = currentUser?.email?.split('@')[0]?.replace(/\+/g, '') || '';
+  const isOwnProfile = cleanUsername === currentUsername;
 
   useEffect(() => {
     async function fetchProfile() {
@@ -74,18 +75,18 @@ export default function UserProfile() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-gray-100 p-8 rounded-xl shadow-md">
+      <div className="relative max-w-md w-full bg-gray-100 p-8 rounded-xl shadow-md">
         <h1 className="text-3xl font-bold mb-4 text-center text-gray-900">
           {isOwnProfile ? 'Your Profile' : `${cleanUsername}'s Profile`}
         </h1>
 
         {/* Edit Button */}
-        {isOwnProfile && (
-          <div className="flex justify-center mb-6">
+        {currentUsername && cleanUsername === currentUsername && (
+          <div className="absolute bottom-4 right-4">
             <Link
               href="/profile/edit"
-              className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition"
-            >
+              className="px-2 py-1 border border-orange-400 bg-orange-100 text-orange-600 rounded-md hover:bg-orange-200 text-sm transition"
+              >
               Edit Profile
             </Link>
           </div>
