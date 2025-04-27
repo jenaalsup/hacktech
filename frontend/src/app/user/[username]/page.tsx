@@ -1,51 +1,63 @@
+// app/user/[username]/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 
+interface Profile {
+  first_name?: string;
+  last_name?: string;
+  phone_number?: string;
+  state?: string;
+  city?: string;
+  looking_for_roommate?: boolean;
+  looking_for_friend?: boolean;
+  start_date?: string;
+  end_date?: string;
+  other_notes?: string;
+  profile_picture?: string;
+}
+
 export default function UserProfile() {
-  const params = useParams();
-  const usernameFromUrl = params.username as string; // from URL like /user/jonathan
+  const { username } = useParams();
   const { currentUser } = useAuth();
 
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
-  // Check: is the person viewing their own profile?
-  const currentUserUsername = currentUser?.email?.split('@')[0]; // derive username from email
-  const isViewingOwnProfile = currentUserUsername === usernameFromUrl;
+  const currentUsername = currentUser?.email?.split('@')[0] || '';
+  const isOwnProfile = username === currentUsername;
 
   useEffect(() => {
-    if (usernameFromUrl) {
-      fetchUserProfile(usernameFromUrl);
+    async function fetchProfile() {
+      try {
+        const res = await fetch(`/api/user?username=${username}`);
+        if (res.status === 404) {
+          setNotFound(true);
+          return;
+        }
+        if (!res.ok) {
+          throw new Error('Fetch error');
+        }
+        const data = await res.json();
+        setProfile(data);
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+      }
     }
-  }, [usernameFromUrl]);
+    fetchProfile();
+  }, [username]);
 
-  const fetchUserProfile = async (username: string) => {
-    try {
-      const response = await fetch(`/api/user?username=${username}`);
-      const data = await response.json();
-      setUserProfile(data);
-      setProfilePicture(data.photoURL || null);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    }
-  };
+  if (notFound) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-lg text-gray-700">User “{username}” not found.</p>
+      </div>
+    );
+  }
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isViewingOwnProfile) return; // Prevent if viewing someone else
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfilePicture(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  if (!userProfile) {
+  if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
@@ -53,72 +65,98 @@ export default function UserProfile() {
     );
   }
 
+  const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ');
+  const initial = profile.first_name
+    ? profile.first_name.charAt(0).toUpperCase()
+    : username.charAt(0).toUpperCase();
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-gray-100 p-8 rounded-xl shadow-md relative">
-        <h1 className="text-3xl font-bold mb-6 text-center text-gray-900">
-          {isViewingOwnProfile ? 'Your Profile' : `${usernameFromUrl}'s Profile`}
+      <div className="max-w-md w-full bg-gray-100 p-8 rounded-xl shadow-md">
+        <h1 className="text-3xl font-bold mb-4 text-center text-gray-900">
+          {isOwnProfile ? 'Your Profile' : `${username}'s Profile`}
         </h1>
 
-        {/* Profile Picture */}
-        <div className="flex justify-center mb-8">
-          <label className={isViewingOwnProfile ? 'cursor-pointer' : ''}>
-            <div className="w-24 h-24 rounded-full bg-orange-200 flex items-center justify-center text-orange-600">
-              {profilePicture ? (
-                <img src={profilePicture} alt="Profile" className="w-full h-full rounded-full object-cover" />
-              ) : (
-                <span className="text-4xl font-bold">
-                  {userProfile.email?.charAt(0).toUpperCase() || 'U'}
-                </span>
-              )}
-            </div>
-            {isViewingOwnProfile && (
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
-              />
-            )}
-          </label>
-        </div>
-
-        <div className="space-y-6">
-          <div className="pb-4">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Account Information</h2>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-gray-700">Email</p>
-                <p className="font-medium text-gray-900">{userProfile.email}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-700">Account ID</p>
-                <p className="font-medium text-sm text-gray-800 font-mono">{userProfile.uid}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-700">Account Created</p>
-                <p className="font-medium text-gray-900">
-                  {userProfile.createdAt
-                    ? new Date(userProfile.createdAt).toLocaleDateString()
-                    : 'Not available'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {isViewingOwnProfile && (
-            <div className="flex justify-end">
-              <button
-                className="py-1 px-2 border border-red-600 bg-red-100 text-red-600 rounded-md hover:bg-red-200 transition-colors"
-                style={{ position: 'absolute', bottom: '10px', right: '10px' }}
-                onClick={() => {
-                  alert('Delete your profile (only visible to yourself)');
-                }}
-              >
-                Delete Profile
-              </button>
+        <div className="flex justify-center mb-4">
+          {profile.profile_picture ? (
+            <img
+              src={profile.profile_picture}
+              alt="Profile"
+              className="w-24 h-24 rounded-full object-cover border-4 border-orange-600"
+            />
+          ) : (
+            <div className="w-24 h-24 rounded-full bg-orange-200 flex items-center justify-center text-orange-600 text-4xl">
+              {initial}
             </div>
           )}
+        </div>
+
+        {fullName && (
+          <h2 className="text-2xl font-semibold mb-6 text-center text-gray-800">
+            {fullName}
+          </h2>
+        )}
+
+        <div className="space-y-6">
+          <h3 className="text-xl font-semibold mb-4 text-gray-800">Profile Details</h3>
+          <div className="space-y-3">
+            {profile.phone_number && (
+              <div>
+                <p className="text-sm text-gray-700">Phone number</p>
+                <p className="font-medium text-gray-900">{profile.phone_number}</p>
+              </div>
+            )}
+            {profile.state && (
+              <div>
+                <p className="text-sm text-gray-700">State</p>
+                <p className="font-medium text-gray-900">{profile.state}</p>
+              </div>
+            )}
+            {profile.city && (
+              <div>
+                <p className="text-sm text-gray-700">City</p>
+                <p className="font-medium text-gray-900">{profile.city}</p>
+              </div>
+            )}
+            {typeof profile.looking_for_roommate === 'boolean' && (
+              <div>
+                <p className="text-sm text-gray-700">Looking for roommates</p>
+                <p className="font-medium text-gray-900">
+                  {profile.looking_for_roommate ? 'Yes' : 'No'}
+                </p>
+              </div>
+            )}
+            {typeof profile.looking_for_friend === 'boolean' && (
+              <div>
+                <p className="text-sm text-gray-700">Looking for friends</p>
+                <p className="font-medium text-gray-900">
+                  {profile.looking_for_friend ? 'Yes' : 'No'}
+                </p>
+              </div>
+            )}
+            {profile.start_date && (
+              <div>
+                <p className="text-sm text-gray-700">Start date</p>
+                <p className="font-medium text-gray-900">
+                  {new Date(profile.start_date).toLocaleDateString()}
+                </p>
+              </div>
+            )}
+            {profile.end_date && (
+              <div>
+                <p className="text-sm text-gray-700">End date</p>
+                <p className="font-medium text-gray-900">
+                  {new Date(profile.end_date).toLocaleDateString()}
+                </p>
+              </div>
+            )}
+            {profile.other_notes && (
+              <div>
+                <p className="text-sm text-gray-700">Other notes</p>
+                <p className="font-medium text-gray-900">{profile.other_notes}</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

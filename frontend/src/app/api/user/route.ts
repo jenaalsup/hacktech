@@ -2,28 +2,42 @@
 import { NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
 
-const uri = process.env.MONGODB_URI; // Your MongoDB connection string
-const client = new MongoClient(uri);
+const client = new MongoClient(process.env.MONGODB_URI!);
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const username = searchParams.get('username');
+  if (!username) {
+    return NextResponse.json(
+      { message: 'Missing username parameter' },
+      { status: 400 }
+    );
+  }
 
   try {
     await client.connect();
-    const database = client.db('your_database_name'); // Replace with your database name
-    const profiles = database.collection('profiles');
+    const dbName = process.env.MONGODB_DB || 'cumble';
+    const db = client.db(dbName);
+    const profiles = db.collection('profiles');
 
-    const userProfile = await profiles.findOne({ email: `${username}@caltech.edu` }); // Fetch user by email
+    // look up by email = "<username>@caltech.edu"
+    const email = `${username}@caltech.edu`;
+    const userProfile = await profiles.findOne({ email });
 
-    if (userProfile) {
-      return NextResponse.json(userProfile);
-    } else {
-      return NextResponse.json({ message: 'User not found' }, { status: 404 });
+    if (!userProfile) {
+      return NextResponse.json(
+        { message: 'User not found' },
+        { status: 404 }
+      );
     }
+
+    return NextResponse.json(userProfile);
   } catch (error) {
     console.error('Error fetching user data:', error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    );
   } finally {
     await client.close();
   }
