@@ -6,12 +6,26 @@ const client = new MongoClient(process.env.MONGODB_URI!);
 
 export async function POST(req: Request) {
   try {
-    const profile = await req.json();
+    const { _id, ...profile } = await req.json();
     await client.connect();
     const db = client.db(process.env.MONGODB_DB);
     const profiles = db.collection('profiles');
-    const result = await profiles.insertOne(profile);
-    return NextResponse.json({ success: true, id: result.insertedId });
+    // require firebase_id
+    if (!profile.firebase_id) {
+        return NextResponse.json(
+        { success: false, message: 'Missing firebase_id' },
+        { status: 400 }
+        );
+    }
+
+    // upsert by firebase_id (no _id in the $set)
+    await profiles.updateOne(
+          { firebase_id: profile.firebase_id },
+          { $set: profile },
+          { upsert: true }
+        );
+    
+    return NextResponse.json({ success: true });
   } catch (err) {
     console.error(err);
     return NextResponse.json(

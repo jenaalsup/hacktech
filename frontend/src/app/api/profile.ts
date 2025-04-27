@@ -19,8 +19,20 @@ export default async function handler(
     await client.connect();
     const db = client.db(process.env.MONGODB_DB);
     const profiles = db.collection('profiles');
-    const result = await profiles.insertOne(req.body);
-    return res.status(200).json({ success: true, id: result.insertedId });
+     // pull body in, but strip out any _id before we update
+    const { _id, ...profile } = req.body;
+    if (!profile.firebase_id) {
+      return res
+        .status(400)
+        .json({ success: false, message: 'Missing firebase_id' });
+    }
+
+    // upsert by firebase_id without ever touching _id
+    await profiles.updateOne(
+      { firebase_id: profile.firebase_id },
+      { $set: profile },
+      { upsert: true }
+    );
   } catch (err) {
     console.error(err);
     return res.status(500).json({ success: false, message: 'Error saving profile' });
