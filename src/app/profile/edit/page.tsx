@@ -99,7 +99,7 @@ export default function EditProfile() {
 
   useEffect(() => {
     if (currentUser?.email) {
-      setProfileData((prev) => ({ ...prev, email: currentUser.email }));
+      setProfileData((prev) => ({ ...prev, email: currentUser.email ?? '' })); // Default to empty string if null
     }
   }, [currentUser]);
 
